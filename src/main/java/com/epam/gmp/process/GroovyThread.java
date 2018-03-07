@@ -15,6 +15,7 @@
 
 package com.epam.gmp.process;
 
+import com.epam.dep.esp.common.json.JsonMapper;
 import com.epam.gmp.ScriptContext;
 import com.epam.gmp.ScriptContextException;
 import com.epam.gmp.service.ScriptContextBuilder;
@@ -92,6 +93,9 @@ public class GroovyThread implements IQueuedThread {
 
     public void run() {
         try {
+            // fix issue with jakson caching
+            JsonMapper.getInstance().cleanCache();
+
             GroovyScriptEngine gse;
             if (scriptContext.getClassLoader() != null) {
                 gse = new GroovyScriptEngine(roots, scriptContext.getClassLoader());
