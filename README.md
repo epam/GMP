@@ -1,4 +1,4 @@
-# GMP
+# GMP [![Build Status](https://travis-ci.org/epam/GMP.svg?branch=master)](https://travis-ci.org/epam/GMP)
 **Groovy ManiPulator**
 is a tool to run groovy scripts organized in folder structure with configuration. Script group may have common parameters in common-config.groovy. Each script may have "personal" configuration. Each script group has it's personal classloader. This approach allows to have scripts chain executed concurrently but working with different library versions. For example two script set gathering data from two different versions of weblogic. 
 
