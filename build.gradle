@@ -84,6 +84,7 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: junitVersion
     compile "com.epam.dep.esp:gmp-common:$gmpCommonVersion"
     compile "commons-cli:commons-cli:$commonsCliVersion"
+    compile "com.google.guava:guava:$guavaVersion"
 }
 
 task copyConfig(type: Copy) {

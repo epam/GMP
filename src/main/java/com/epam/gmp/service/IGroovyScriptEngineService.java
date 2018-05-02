@@ -13,36 +13,17 @@
  *  ***************************************************************************
  */
 
-package com.epam.gmp;
+package com.epam.gmp.service;
 
-import java.util.Map;
+import com.epam.gmp.ScriptContext;
+import com.epam.gmp.ScriptInitializationException;
+import groovy.lang.Binding;
+import groovy.lang.Script;
 
-public class ScriptContext {
-    private Map<String, Object> params;
-    private String root;
-    private String scriptName;
-    private String scriptId;
+public interface IGroovyScriptEngineService {
+    Script createScript(ScriptContext scriptContext) throws ScriptInitializationException;
 
-    public ScriptContext(String scriptId, Map<String, Object> params, String root, String scriptName) {
-        this.scriptId = scriptId;
-        this.params = params;
-        this.root = root;
-        this.scriptName = scriptName;
-    }
+    Script createScript(String rootFolder, String scriptName, Binding binding) throws ScriptInitializationException;
 
-    public String getScriptId() {
-        return scriptId;
-    }
-
-    public String getRoot() {
-        return root;
-    }
-
-    public String getScriptName() {
-        return scriptName;
-    }
-
-    public Map<String, Object> getParams() {
-        return params;
-    }
+    void runScript(ScriptContext scriptContext);
 }

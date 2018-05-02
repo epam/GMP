@@ -15,34 +15,24 @@
 
 package com.epam.gmp;
 
-import java.util.Map;
-
-public class ScriptContext {
-    private Map<String, Object> params;
-    private String root;
-    private String scriptName;
-    private String scriptId;
-
-    public ScriptContext(String scriptId, Map<String, Object> params, String root, String scriptName) {
-        this.scriptId = scriptId;
-        this.params = params;
-        this.root = root;
-        this.scriptName = scriptName;
+public class ScriptInitializationException extends Exception {
+    public ScriptInitializationException() {
+        super();
     }
 
-    public String getScriptId() {
-        return scriptId;
+    public ScriptInitializationException(String message) {
+        super(message);
     }
 
-    public String getRoot() {
-        return root;
+    public ScriptInitializationException(String message, Throwable cause) {
+        super(message, cause);
     }
 
-    public String getScriptName() {
-        return scriptName;
+    public ScriptInitializationException(Throwable cause) {
+        super(cause);
     }
 
-    public Map<String, Object> getParams() {
-        return params;
+    protected ScriptInitializationException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

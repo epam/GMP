@@ -16,9 +16,11 @@
 package com.epam.gmp.service;
 
 import com.epam.gmp.ExportBinding;
-import com.epam.gmp.ScriptClassloader;
 import com.epam.gmp.ScriptContext;
 import com.epam.gmp.ScriptContextException;
+import com.epam.gmp.ScriptInitializationException;
+import groovy.lang.Binding;
+import groovy.lang.Script;
 import groovy.util.ConfigObject;
 import groovy.util.ConfigSlurper;
 import org.slf4j.Logger;
@@ -28,15 +30,14 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,89 +50,91 @@ public class ScriptContextBuilder {
     public static final String SCRIPT_CONFIG = "@scriptConfig";
     public static final String SCRIPT_TO_RUN = "script";
     public static final String EXECUTOR_FIELD = "EXECUTOR";
-    private final static Logger logger = LoggerFactory.getLogger(ScriptContextBuilder.class);
-    private static final String LIB_FOLDER = "lib";
+    private static final Logger logger = LoggerFactory.getLogger(ScriptContextBuilder.class);
     private static final String COMMON_CONFIG = "common-config.groovy";
     private static final String GLOBAL_CONFIG = "global-config.groovy";
-    private static final String SCRIPTS = "scripts";
-    public static Pattern SCRIPT_PATTERN = Pattern.compile("([^@]*)[@](([^/]*)/((.*)[.]groovy))");
-    public static Pattern SCRIPT_FILE_PATTERN = Pattern.compile("(([^.]*)([.]config)?([.]groovy))");
+    private static final String SCRIPTS_FOLDER = "scripts";
+    public static final Pattern SCRIPT_PATTERN = Pattern.compile("([^@]*)[@](([^/]*)/((.*)[.]groovy))");
+    public static final Pattern SCRIPT_FILE_PATTERN = Pattern.compile("(([^.]*)([.]config)?([.]groovy))");
 
     private Map<String, Object> bindingBeans;
+
+    //Because of @CconfigSlurper memory leaks we need to minimize config loading
+    private Map<Class, Map<String, ConfigObject>> configCache = new ConcurrentHashMap<>();
 
     @Resource(name = "gmpHome")
     private String gmpHome;
 
     @Autowired
-    private GMPContext GMPContext;
+    private GMPContext gmpContext;
 
-    public ScriptContext buildContextFor(String scriptPath, List<String> cmdLineParams) throws ScriptContextException {
+    @Autowired
+    private IGroovyScriptEngineService groovyScriptEngineService;
+
+    public ScriptContext buildContextFor(String scriptPath, List<String> cmdLineParams) {
         Matcher pathMatcher = SCRIPT_PATTERN.matcher(scriptPath);
-        if (pathMatcher.matches()) {
-            String scriptGroupFolder = gmpHome + File.separator + SCRIPTS + File.separator + pathMatcher.group(3);
-            String scriptName = pathMatcher.group(4);
-            String environment = pathMatcher.group(1);
-            File fScriptGroupFolder = new File(scriptGroupFolder);
-            if (fScriptGroupFolder.exists()) {
-                ClassLoader scriptClassLoader = buildClassloader(fScriptGroupFolder);
 
-                ConfigObject groovyConfig = new ConfigObject();
-                //Global config
-                File global = new File(gmpHome + File.separator + GLOBAL_CONFIG);
-                ConfigObject globalConfig = fillParamMapFromGroovy(global, getBindingBeans(), environment);
-                if (globalConfig != null) groovyConfig.merge(globalConfig);
-
-                //Common config
-                File properties = new File(scriptGroupFolder + File.separator + COMMON_CONFIG);
-                ConfigObject commonConfig = fillParamMapFromGroovy(properties, getBindingBeans(), environment);
-                if (commonConfig != null) groovyConfig.merge(commonConfig);
-
-                ConfigObject scriptConfig = buildConfig(scriptGroupFolder, scriptName, environment, null);
-                if (scriptConfig != null) {
-                    groovyConfig.merge(scriptConfig);
-                    scriptName = ((Map) groovyConfig.get(EXECUTOR_FIELD)).get(SCRIPT_TO_RUN).toString();
-                    groovyConfig.remove(EXECUTOR_FIELD);
-                }
-
-                //ADD logger
-                HashMap<String, Object> paramMap = new HashMap<>();
-                Logger scriptLogger = LoggerFactory.getLogger(scriptName.replaceAll("[.]", "_"));
-                paramMap.put("logger", scriptLogger);
-
-                paramMap.put("gConfig", groovyConfig);
-                paramMap.put("cmdLine", cmdLineParams);
-                if (logger.isInfoEnabled()) {
-                    logger.info("Groovy based script configuration:\n" + scriptName + ":" + configToString(groovyConfig));
-                }
-                return new ScriptContext(scriptPath, scriptClassLoader, paramMap, scriptGroupFolder, scriptName);
-            }
+        if (!pathMatcher.matches()) {
+            throw new ScriptContextException("Unable to build context for: " + scriptPath);
         }
-        throw new ScriptContextException("Unable to build context for: " + scriptPath);
+
+        String scriptGroupFolder = gmpHome + File.separator + SCRIPTS_FOLDER + File.separator + pathMatcher.group(3);
+        String scriptName = pathMatcher.group(4);
+        String environment = pathMatcher.group(1);
+        File fScriptGroupFolder = new File(scriptGroupFolder);
+
+        if (!fScriptGroupFolder.exists()) {
+            throw new ScriptContextException("Script group folder doesn't exist: " + fScriptGroupFolder.getAbsolutePath());
+        }
+
+        try {
+            ConfigObject groovyConfig = new ConfigObject();
+            //Global config
+            Script globalConfigScript = groovyScriptEngineService.createScript(scriptGroupFolder, GLOBAL_CONFIG, new Binding(bindingBeans));
+
+            ConfigObject globalConfig = fillParamMapFromGroovy(globalConfigScript, environment, bindingBeans);
+            if (globalConfig != null) groovyConfig.merge(globalConfig);
+
+            //Common config
+            Script commonConfigScript = groovyScriptEngineService.createScript(scriptGroupFolder, COMMON_CONFIG, new Binding(bindingBeans));
+
+            ConfigObject commonConfig = fillParamMapFromGroovy(commonConfigScript, environment, bindingBeans);
+            if (commonConfig != null) groovyConfig.merge(commonConfig);
+
+            ConfigObject scriptConfig = buildConfig(scriptGroupFolder, scriptName, environment, null);
+            if (scriptConfig != null) {
+                groovyConfig.merge(scriptConfig);
+                scriptName = ((Map) groovyConfig.get(EXECUTOR_FIELD)).get(SCRIPT_TO_RUN).toString();
+                groovyConfig.remove(EXECUTOR_FIELD);
+            }
+
+            //ADD logger
+            HashMap<String, Object> paramMap = new HashMap<>();
+            Logger scriptLogger = LoggerFactory.getLogger(scriptName.replaceAll("[.]", "_"));
+            paramMap.put("logger", scriptLogger);
+
+            paramMap.put("gConfig", groovyConfig);
+            paramMap.put("cmdLine", cmdLineParams);
+            if (logger.isInfoEnabled()) {
+                logger.info("Groovy based script configuration:\n" + scriptName + ":" + configToString(groovyConfig));
+            }
+            return new ScriptContext(scriptPath, paramMap, scriptGroupFolder, scriptName);
+
+        } catch (ScriptInitializationException e) {
+            throw new ScriptContextException("Unable to build context for: " + scriptPath);
+        }
     }
 
-    protected ClassLoader buildClassloader(File sPath) {
-        File libs = new File(sPath + File.separator + LIB_FOLDER);
-        ClassLoader scriptClassLoader = null;
-        if (libs.exists()) {
-            try {
-                String[] jars = libs.list(new LibFilter());
-                List<URL> urls = new ArrayList<>();
-                for (String jar : jars) {
-                    urls.add(new URL("file", "", libs.getAbsolutePath() + File.separator + jar));
-                }
-                URL[] aUrls = new URL[urls.size()];
-                scriptClassLoader = new ScriptClassloader(urls.toArray(aUrls), Thread.currentThread().getContextClassLoader());
 
-            } catch (MalformedURLException e) {
-                logger.error("Unable to setup classloader for: " + libs.getAbsolutePath());
-            }
-        } else {
-            scriptClassLoader = new ScriptClassloader(new URL[0], Thread.currentThread().getContextClassLoader());
-        }
-        return scriptClassLoader;
-    }
-
-    protected ConfigObject buildConfig(String scriptGroupFolder, String scriptName, String environment, Set<String> configs) {
+    /**
+     * @param scriptGroupFolder - group folder
+     * @param scriptName        - script name
+     * @param environment       - environment key
+     * @param configs           - set if already applied configs
+     * @return ConfigObject for a given script
+     * @throws ScriptInitializationException in case of error
+     */
+    protected ConfigObject buildConfig(String scriptGroupFolder, String scriptName, String environment, Set<String> configs) throws ScriptInitializationException {
         Matcher fileNameMatcher = SCRIPT_FILE_PATTERN.matcher(scriptName);
         ConfigObject scriptConfig = null;
         if (fileNameMatcher.matches()) {
@@ -150,25 +153,18 @@ public class ScriptContextBuilder {
                 scriptToRun = fileNameMatcher.group(2) + SCRIPT_SUFFIX;
             }
 
-            if (configs.contains(configFileName)) return null; // we parsed it already
+            // Skip parsing if current config already parsed
+            if (configs.contains(configFileName)) return null;
+            Script configScript = groovyScriptEngineService.createScript(scriptGroupFolder, configFileName, new Binding(bindingBeans));
 
-            File gConfigFile = new File(scriptGroupFolder + File.separator + configFileName);
-            scriptConfig = fillParamMapFromGroovy(gConfigFile, getBindingBeans(), environment);
-            if (logger.isInfoEnabled()) logger.info("File " + gConfigFile.getAbsolutePath() + " loaded.");
-            configs.add(configFileName);
-            if (scriptConfig != null) {
+            if (configScript != null) {
+                scriptConfig = fillParamMapFromGroovy(configScript, environment, bindingBeans);
+                if (logger.isInfoEnabled()) logger.info(String.format("File %s has been loaded.", configFileName));
+                configs.add(configFileName);
+
                 @SuppressWarnings("unchecked")
-                Map<String, Object> parentConfig = (Map) scriptConfig.get(EXECUTOR_FIELD);
-
-                if (parentConfig == null) {
-                    parentConfig = new HashMap<>();
-                    scriptConfig.put(EXECUTOR_FIELD, parentConfig);
-                }
-
-                if (!parentConfig.containsKey(SCRIPT_TO_RUN)) {
-                    parentConfig.put(SCRIPT_TO_RUN, scriptToRun);
-                }
-
+                Map<String, Object> parentConfig = (Map<String, Object>) scriptConfig.computeIfAbsent(EXECUTOR_FIELD, (key -> new HashMap<String, Object>()));
+                parentConfig.putIfAbsent(SCRIPT_TO_RUN, scriptToRun);
                 parentConfig.put(SCRIPT_CONFIG, scriptName);
 
                 if (!StringUtils.isEmpty(parentConfig.get(INCLUDE_CONFIG_FIELD))) {
@@ -178,13 +174,13 @@ public class ScriptContextBuilder {
                         if (parentConfigObject != null) {
                             parentConfigObject.merge(scriptConfig);
                             if (logger.isInfoEnabled()) {
-                                logger.info("File " + scriptGroupFolder + "/" + configFileName + " merged.");
+                                logger.info(String.format("File %s/%s has been merged.", scriptGroupFolder, configFileName));
                             }
                             return parentConfigObject;
                         }
                     } else {
                         if (logger.isInfoEnabled()) {
-                            logger.info("File " + scriptGroupFolder + "/" + parentConfig + " doesn't exist.");
+                            logger.info(String.format("File %s/%s  doesn't exist.", scriptGroupFolder, parentConfig));
                         }
                     }
                 }
@@ -193,21 +189,31 @@ public class ScriptContextBuilder {
         return scriptConfig;
     }
 
-    private ConfigObject fillParamMapFromGroovy(File file, Map<String, Object> params, String environment) {
-        if (!file.exists()) {
-            if (logger.isInfoEnabled()) logger.info("File doesn't exist " + file.getAbsolutePath());
-            return null;
-        }
-        try {
-            ConfigSlurper configSlurper = new ConfigSlurper(environment);
-            configSlurper.setBinding(params);
-            return configSlurper.parse(file.toURI().toURL());
-        } catch (MalformedURLException e) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("Unable to load " + file.getAbsolutePath());
+    private ConfigObject fillParamMapFromGroovy(Script cfgScript, String environment, Map bindings) {
+        if (cfgScript == null) return null;
+
+        Map<String, ConfigObject> scriptConfigs = configCache.computeIfAbsent(cfgScript.getClass(), key -> new ConcurrentHashMap<String, ConfigObject>());
+        ConfigObject configForEnvironment = scriptConfigs.computeIfAbsent(environment, key -> {
+            ConfigSlurper configSlurper = new ConfigSlurper(key);
+            configSlurper.setBinding(bindings);
+            return configSlurper.parse(cfgScript);
+        });
+        return copyConfigObject(configForEnvironment);
+    }
+
+    /**
+     * @param origin - ConfigObject to clone
+     * @return - deep copy of config object
+     */
+    private ConfigObject copyConfigObject(ConfigObject origin) {
+        ConfigObject copy = new ConfigObject();
+        origin.forEach((key, value) -> {
+            if (value instanceof ConfigObject) {
+                value = copyConfigObject((ConfigObject) value);
             }
-        }
-        return null;
+            copy.put(key, value);
+        });
+        return copy;
     }
 
     private void fillParamMapFromProperties(File file, Map<String, Object> params) {
@@ -234,17 +240,15 @@ public class ScriptContextBuilder {
         }
     }
 
-    private Map<String, Object> getBindingBeans() {
-        if (bindingBeans == null) {
-            Map<String, Object> beans = GMPContext.getApplicationContext().getBeansWithAnnotation(ExportBinding.class);
-            Map<String, Object> bindings = new HashMap<>();
-            for (Map.Entry<String, Object> bean : beans.entrySet()) {
-                ExportBinding annotationBinding = bean.getValue().getClass().getAnnotation(ExportBinding.class);
-                bindings.put(annotationBinding.name().length() == 0 ? bean.getKey() : annotationBinding.name(), bean.getValue());
-            }
-            bindingBeans = bindings;
+
+    private Map<String, Object> computeBindingBeans() {
+        Map<String, Object> beans = gmpContext.getApplicationContext().getBeansWithAnnotation(ExportBinding.class);
+        Map<String, Object> bindings = new HashMap<>();
+        for (Map.Entry<String, Object> bean : beans.entrySet()) {
+            ExportBinding annotationBinding = bean.getValue().getClass().getAnnotation(ExportBinding.class);
+            bindings.put(annotationBinding.name().length() == 0 ? bean.getKey() : annotationBinding.name(), bean.getValue());
         }
-        return bindingBeans;
+        return Collections.unmodifiableMap(bindings);
     }
 
     private String configToString(ConfigObject cfg) {
@@ -254,10 +258,9 @@ public class ScriptContextBuilder {
         //FilteredJsonMapper.getInstance().map(true, cfg);
     }
 
-    private class LibFilter implements FilenameFilter {
-        @Override
-        public boolean accept(File dir, String name) {
-            return name.toLowerCase().endsWith(".jar");
-        }
+    @PostConstruct
+    protected void init() {
+        bindingBeans = computeBindingBeans();
     }
+
 }

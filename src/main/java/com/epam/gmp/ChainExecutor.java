@@ -31,7 +31,7 @@ import java.util.regex.Matcher;
 import static com.epam.gmp.service.ScriptContextBuilder.SCRIPT_PATTERN;
 
 public class ChainExecutor {
-    private final static Logger logger = LoggerFactory.getLogger(ChainExecutor.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChainExecutor.class);
 
     private AnnotationConfigApplicationContext context;
 
@@ -69,7 +69,9 @@ public class ChainExecutor {
                 }
             }
             processService.shutdown();
-            logger.info("Took: " + (System.currentTimeMillis() - start));
+            if (logger.isInfoEnabled()) {
+                logger.info("Took: {0}", System.currentTimeMillis() - start);
+            }
             ExitCodeCalculator exitCodeCalculator = chainExecutor.context.getBean(ExitCodeCalculator.class);
             int exitCode = exitCodeCalculator.calculate(initialExitCode);
             chainExecutor.context.close();

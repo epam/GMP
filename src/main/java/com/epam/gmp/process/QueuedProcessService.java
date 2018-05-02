@@ -60,7 +60,7 @@ public class QueuedProcessService implements IQueuedProcessService {
         }
     }
 
-    synchronized public void execute(IQueuedThread process) {
+    public synchronized void execute(IQueuedThread process) {
         if (threadPool != null && !threadPool.isShutdown()) {
             threadPool.execute(process);
 
@@ -87,7 +87,9 @@ public class QueuedProcessService implements IQueuedProcessService {
             if (!threadPool.awaitTermination(timeout, TimeUnit.MINUTES)) {
                 logger.info("Thread pool shutdown timeout");
             }
-            logger.info("Thread pool has been terminated in: " + (System.currentTimeMillis() - start) + " millis.");
+            if (logger.isInfoEnabled()) {
+                logger.info("Thread pool has been terminated in: {0} millis.", System.currentTimeMillis() - start);
+            }
         } catch (InterruptedException e) {
             logger.error("Unable to stop thread pool correctly.", e);
         }

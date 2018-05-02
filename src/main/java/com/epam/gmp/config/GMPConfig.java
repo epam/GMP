@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @EnableAspectJAutoProxy
 
 public class GMPConfig {
-    private final static Logger logger = LoggerFactory.getLogger(GMPConfig.class);
+    private static final Logger logger = LoggerFactory.getLogger(GMPConfig.class);
     private static final String GMP_PROPERTIES = "gmp.properties";
 
     @Bean(name = "gmpHome")

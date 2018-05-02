@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.util.Map;
 
-import static com.epam.gmp.process.GroovyThread.NULL_RESULT;
+import static com.epam.gmp.service.GroovyScriptEngineService.NULL_RESULT;
 
 @Service("ExitCodeCalculator")
 public class ExitCodeCalculator {
