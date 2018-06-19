@@ -113,7 +113,8 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
                 String[] jars = libs.list(new LibFilter());
                 List<URL> urls = new ArrayList<>();
                 for (String jar : jars) {
-                    urls.add(new URL("file", "", libs.getAbsolutePath() + File.separator + jar));
+                    File jarFile = new File(libs.getAbsolutePath() + File.separator + jar);
+                    urls.add(jarFile.toURI().toURL());
                 }
                 URL[] aUrls = new URL[urls.size()];
                 scriptClassLoader = new ScriptClassloader(urls.toArray(aUrls), Thread.currentThread().getContextClassLoader());

@@ -26,7 +26,9 @@ import groovy.util.ConfigSlurper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.YamlMapFactoryBean;
 import org.springframework.context.annotation.Scope;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -47,6 +49,7 @@ public class ScriptContextBuilder {
     public static final String CONFIG_SUFFIX = ".config.groovy";
     public static final String SCRIPT_SUFFIX = ".groovy";
     public static final String INCLUDE_CONFIG_FIELD = "includeConfig";
+    public static final String INCLUDE_YAML_FIELD = "includeYaml";
     public static final String SCRIPT_CONFIG = "@scriptConfig";
     public static final String SCRIPT_TO_RUN = "script";
     public static final String EXECUTOR_FIELD = "EXECUTOR";
@@ -167,6 +170,15 @@ public class ScriptContextBuilder {
                 parentConfig.putIfAbsent(SCRIPT_TO_RUN, scriptToRun);
                 parentConfig.put(SCRIPT_CONFIG, scriptName);
 
+                if (!StringUtils.isEmpty(parentConfig.get(INCLUDE_YAML_FIELD))) {
+                    YamlMapFactoryBean factory = new YamlMapFactoryBean();
+                    factory.setResources(new FileSystemResource( scriptGroupFolder + File.separator + parentConfig.get(INCLUDE_YAML_FIELD) ) );
+                    Map result = factory.getObject();
+                    MyConfigObject yamlCfg = new MyConfigObject ();
+                    yamlCfg.mapMerge(result);
+                    yamlCfg.mapMerge(scriptConfig);
+                }
+
                 if (!StringUtils.isEmpty(parentConfig.get(INCLUDE_CONFIG_FIELD))) {
                     File fParentConfig = new File(scriptGroupFolder + File.separator + parentConfig.get(INCLUDE_CONFIG_FIELD));
                     if (fParentConfig.exists()) {
@@ -184,6 +196,8 @@ public class ScriptContextBuilder {
                         }
                     }
                 }
+
+
             }
         }
         return scriptConfig;
@@ -261,6 +275,37 @@ public class ScriptContextBuilder {
     @PostConstruct
     protected void init() {
         bindingBeans = computeBindingBeans();
+    }
+
+    class MyConfigObject extends ConfigObject {
+        public Map mapMerge(Map other) {
+            return doMerge(this, other);
+        }
+
+        private Map doMerge(Map config, Map other) {
+            for (Object o : other.entrySet()) {
+                Map.Entry next = (Map.Entry) o;
+                Object key = next.getKey();
+                Object value = next.getValue();
+
+                Object configEntry = config.get(key);
+
+                if (configEntry == null) {
+                    config.put(key, value);
+
+                    continue;
+                } else {
+                    if (configEntry instanceof Map && !((Map) configEntry).isEmpty() && value instanceof Map) {
+                        // recur
+                        doMerge((Map) configEntry, (Map) value);
+                    } else {
+                        config.put(key, value);
+                    }
+                }
+            }
+
+            return config;
+        }
     }
 
 }
