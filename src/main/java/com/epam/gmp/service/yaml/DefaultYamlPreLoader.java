@@ -13,22 +13,16 @@
  *  ***************************************************************************
  */
 
-package com.epam.gmp.service;
+package com.epam.gmp.service.yaml;
 
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Service;
 
-@Component
-public class GMPContext implements ApplicationContextAware {
-    private static ApplicationContext applicationContext;
-
-    public static ApplicationContext getApplicationContext() {
-        return applicationContext;
-    }
-
+@Service
+@Order(value = -1)
+public class DefaultYamlPreLoader implements IYamlPreLoader {
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public void preload(YamlLoaderContext context) {
+        //Default it does'n do anything
     }
 }

@@ -15,9 +15,13 @@
 
 package com.epam.gmp.config;
 
+import com.epam.gmp.ExportBinding;
 import com.epam.gmp.ScriptContextException;
+import com.epam.gmp.service.GMPContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ListableBeanFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +32,8 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,6 +44,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GMPConfig {
     private static final Logger logger = LoggerFactory.getLogger(GMPConfig.class);
     private static final String GMP_PROPERTIES = "gmp.properties";
+
+    @Autowired
+    private GMPContext gmpContext;
 
     @Bean(name = "gmpHome")
     public static String gmpHome() {
@@ -70,5 +79,18 @@ public class GMPConfig {
     @Bean(name = "ResultMap")
     public static Map<String, Object> resultMap() {
         return new ConcurrentHashMap<>();
+    }
+
+    @Bean(name = "ExportBindings")
+    public static Map<String, Object> computeExportBeans(ListableBeanFactory beanFactory) {
+        Map<String, Object> beans = beanFactory.getBeansWithAnnotation(ExportBinding.class);
+        Map<String, Object> bindings = new HashMap<>();
+        for (Map.Entry<String, Object> bean : beans.entrySet()) {
+            ExportBinding annotationBinding = bean.getValue().getClass().getAnnotation(ExportBinding.class);
+            String key = annotationBinding.name().length() == 0 ? bean.getKey() : annotationBinding.name();
+            bindings.put(key, bean.getValue());
+            if (logger.isDebugEnabled()) logger.debug("Export binding: {}.", key);
+        }
+        return Collections.unmodifiableMap(bindings);
     }
 }

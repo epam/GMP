@@ -67,7 +67,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
      * @return GroovyScriptEngine instance
      * @throws ScriptInitializationException in case if it is not possible to load script
      */
-    protected GroovyScriptEngine getEngine(String rootFolder) throws ScriptInitializationException {
+    public GroovyScriptEngine getEngine(String rootFolder) throws ScriptInitializationException {
         GroovyScriptEngine engine = gseCache.get(rootFolder);
         try {
             if (engine == null) {
@@ -85,6 +85,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
             throw new ScriptInitializationException("Unable to initialize groovy root at: " + rootFolder, e);
         }
     }
+
 
     @Override
     public Script createScript(ScriptContext scriptContext) throws ScriptInitializationException {

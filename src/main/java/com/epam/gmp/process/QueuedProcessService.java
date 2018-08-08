@@ -88,7 +88,7 @@ public class QueuedProcessService implements IQueuedProcessService {
                 logger.info("Thread pool shutdown timeout");
             }
             if (logger.isInfoEnabled()) {
-                logger.info("Thread pool has been terminated in: {0} millis.", System.currentTimeMillis() - start);
+                logger.info("Thread pool has been terminated in: {} millis.", System.currentTimeMillis() - start);
             }
         } catch (InterruptedException e) {
             logger.error("Unable to stop thread pool correctly.", e);
