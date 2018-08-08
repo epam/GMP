@@ -13,22 +13,21 @@
  *  ***************************************************************************
  */
 
-package com.epam.gmp.service;
+package com.epam.gmp.service.yaml;
 
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Service;
 
-@Component
-public class GMPContext implements ApplicationContextAware {
-    private static ApplicationContext applicationContext;
-
-    public static ApplicationContext getApplicationContext() {
-        return applicationContext;
-    }
+@Service
+@Order(value = -1)
+public class DefaultYamlPreProcessor implements IYamlPreProcessor {
+    private static final Logger logger = LoggerFactory.getLogger(DefaultYamlPreProcessor.class);
 
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public String process(String yamlSrc, YamlLoaderContext context) {
+        logger.info("Yaml content \n\r{}", yamlSrc);
+        return yamlSrc;
     }
 }

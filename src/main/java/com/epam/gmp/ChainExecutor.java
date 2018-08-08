@@ -70,7 +70,7 @@ public class ChainExecutor {
             }
             processService.shutdown();
             if (logger.isInfoEnabled()) {
-                logger.info("Took: {0}", System.currentTimeMillis() - start);
+                logger.info("Took: {}", System.currentTimeMillis() - start);
             }
             ExitCodeCalculator exitCodeCalculator = chainExecutor.context.getBean(ExitCodeCalculator.class);
             int exitCode = exitCodeCalculator.calculate(initialExitCode);
