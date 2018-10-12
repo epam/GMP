@@ -15,15 +15,18 @@
 
 package com.epam.gmp;
 
+import com.epam.dep.esp.common.json.JsonMapper;
+import org.springframework.core.io.Resource;
+
 import java.util.Map;
 
 public class ScriptContext {
     private Map<String, Object> params;
-    private String root;
+    private Resource root;
     private String scriptName;
     private String scriptId;
 
-    public ScriptContext(String scriptId, Map<String, Object> params, String root, String scriptName) {
+    public ScriptContext(String scriptId, Map<String, Object> params, Resource root, String scriptName) {
         this.scriptId = scriptId;
         this.params = params;
         this.root = root;
@@ -34,7 +37,7 @@ public class ScriptContext {
         return scriptId;
     }
 
-    public String getRoot() {
+    public Resource getRoot() {
         return root;
     }
 

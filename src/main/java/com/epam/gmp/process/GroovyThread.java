@@ -16,6 +16,7 @@
 package com.epam.gmp.process;
 
 import com.epam.gmp.ScriptContext;
+import com.epam.gmp.ScriptInitializationException;
 import com.epam.gmp.service.IGroovyScriptEngineService;
 import com.epam.gmp.service.ScriptContextBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +56,7 @@ public class GroovyThread implements IQueuedThread {
     }
 
     @PostConstruct
-    public void init() {
+    public void init() throws ScriptInitializationException {
         this.scriptContext = scriptContextBuilder.buildContextFor(scriptPath, cmdLineParams);
         this.resultKey = scriptContext.getScriptId();
     }

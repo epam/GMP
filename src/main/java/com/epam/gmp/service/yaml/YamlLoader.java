@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.YamlMapFactoryBean;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -53,10 +54,10 @@ public class YamlLoader {
     @Autowired
     GroovyScriptEngineService groovyScriptEngineService;
 
-    public Map<String, Object> getObject(Map<String, Object> params, String baseFolder, String yamlFileName) {
+    public Map<String, Object> getObject(Map<String, Object> params, Resource baseFolder, String yamlFileName) {
         Map<String, Object> result = Collections.emptyMap();
 
-        YamlFreemarkerEngine yamlFreemarkerEngine = yamlEngineCache.computeIfAbsent(baseFolder,
+        YamlFreemarkerEngine yamlFreemarkerEngine = yamlEngineCache.computeIfAbsent(baseFolder.toString(),
                 (key -> {
                     try {
                         return new YamlFreemarkerEngine(groovyScriptEngineService.getEngine(baseFolder).getParentClassLoader(), "", baseFolder);

@@ -10,7 +10,7 @@
     </appender>
 
     <appender name="file" class="org.apache.log4j.FileAppender">
-        <param name="File" value="${gmp.home}/log/gmp.log" />
+        <param name="File" value="${gmp.log.home}/log/gmp.log" />
         <layout class="org.apache.log4j.PatternLayout">
             <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} %t %-5p %c{1}:%L - %m%n" />
         </layout>

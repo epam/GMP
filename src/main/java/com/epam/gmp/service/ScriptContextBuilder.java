@@ -15,6 +15,7 @@
 
 package com.epam.gmp.service;
 
+import com.epam.gmp.GmpResourceUtils;
 import com.epam.gmp.ScriptContext;
 import com.epam.gmp.ScriptContextException;
 import com.epam.gmp.ScriptInitializationException;
@@ -63,8 +64,8 @@ public class ScriptContextBuilder {
     //Because of @CconfigSlurper memory leaks we need to minimize config loading
     private Map<Class, Map<String, ConfigObject>> configCache = new ConcurrentHashMap<>();
 
-    @Resource(name = "gmpHome")
-    private String gmpHome;
+    @Resource(name = "gmpHomeResource")
+    private org.springframework.core.io.Resource gmpHome;
 
     @Autowired
     private IGroovyScriptEngineService groovyScriptEngineService;
@@ -72,40 +73,40 @@ public class ScriptContextBuilder {
     @Autowired
     private YamlLoader yamlLoader;
 
-    public ScriptContext buildContextFor(String scriptPath, List<String> cmdLineParams) {
+    public ScriptContext buildContextFor(String scriptPath, List<String> cmdLineParams) throws ScriptInitializationException {
         Matcher pathMatcher = SCRIPT_PATTERN.matcher(scriptPath);
 
         if (!pathMatcher.matches()) {
             throw new ScriptContextException("Unable to build context for: " + scriptPath);
         }
+        org.springframework.core.io.Resource scriptGroupPath = GmpResourceUtils.getRelativeResource(gmpHome, "/" + SCRIPTS_FOLDER + "/" + pathMatcher.group(3) + "/");
 
-        String scriptGroupFolder = gmpHome + File.separator + SCRIPTS_FOLDER + File.separator + pathMatcher.group(3);
         String scriptName = pathMatcher.group(4);
         String environment = pathMatcher.group(1);
-        File fScriptGroupFolder = new File(scriptGroupFolder);
 
-        if (!fScriptGroupFolder.exists()) {
-            throw new ScriptContextException("Script group folder doesn't exist: " + fScriptGroupFolder.getAbsolutePath());
+
+        if (!scriptGroupPath.exists()) {
+            throw new ScriptContextException("Script group folder doesn't exist: " + scriptGroupPath.toString());
         }
 
         try {
             ConfigObject groovyConfig = new ConfigObject();
             //Global config
-            Script globalConfigScript = groovyScriptEngineService.createScript(scriptGroupFolder, GLOBAL_CONFIG, new Binding(bindingBeans));
+            Script globalConfigScript = groovyScriptEngineService.createScript(scriptGroupPath, GLOBAL_CONFIG, new Binding(bindingBeans));
             ConfigObject globalConfig = fillParamMapFromGroovy(globalConfigScript, environment, bindingBeans);
             if (globalConfig != null) {
                 groovyConfig.merge(globalConfig);
             }
 
             //Common config
-            Script commonConfigScript = groovyScriptEngineService.createScript(scriptGroupFolder, COMMON_CONFIG, new Binding(bindingBeans));
+            Script commonConfigScript = groovyScriptEngineService.createScript(scriptGroupPath, COMMON_CONFIG, new Binding(bindingBeans));
             ConfigObject commonConfig = fillParamMapFromGroovy(commonConfigScript, environment, bindingBeans);
             if (commonConfig != null) {
                 groovyConfig.merge(commonConfig);
             }
 
             //Script config
-            ConfigObject scriptConfig = buildConfig(scriptGroupFolder, scriptName, environment, null, null);
+            ConfigObject scriptConfig = buildConfig(scriptGroupPath, scriptName, environment, null, null);
             if (scriptConfig != null) {
                 groovyConfig.merge(scriptConfig);
             }
@@ -123,7 +124,7 @@ public class ScriptContextBuilder {
             if (logger.isInfoEnabled()) {
                 logger.info("Groovy based script configuration:\n" + scriptName + ":" + configToString(groovyConfig));
             }
-            return new ScriptContext(scriptPath, paramMap, scriptGroupFolder, scriptName);
+            return new ScriptContext(scriptPath, paramMap, scriptGroupPath, scriptName);
 
         } catch (ScriptInitializationException e) {
             throw new ScriptContextException("Unable to build context for: " + scriptPath);
@@ -140,17 +141,18 @@ public class ScriptContextBuilder {
      * @return ConfigObject for a given script
      * @throws ScriptInitializationException in case of error
      */
-    protected ConfigObject buildConfig(String scriptGroupFolder, String scriptName, String environment, Set<String> configs, Map additionalBindings) throws ScriptInitializationException {
+    protected ConfigObject buildConfig(org.springframework.core.io.Resource scriptGroupFolder, String scriptName, String environment, Set<String> configs, Map additionalBindings) throws ScriptInitializationException {
         Matcher fileNameMatcher = SCRIPT_FILE_PATTERN.matcher(scriptName);
         ConfigObject scriptConfig = null;
+
+        String configFileName = scriptName;
+        String scriptToRun;
+
         if (fileNameMatcher.matches()) {
 
             if (configs == null) {
                 configs = new LinkedHashSet<>();
             }
-
-            String configFileName = scriptName;
-            String scriptToRun;
 
             if (!scriptName.endsWith(CONFIG_SUFFIX)) {
                 configFileName = fileNameMatcher.group(2) + CONFIG_SUFFIX;
@@ -177,27 +179,26 @@ public class ScriptContextBuilder {
                 configs.add(configFileName);
 
                 @SuppressWarnings("unchecked")
-                Map<String, Object> parentConfig = (Map<String, Object>) scriptConfig.computeIfAbsent(EXECUTOR_FIELD, (key -> new HashMap<String, Object>()));
-                parentConfig.putIfAbsent(SCRIPT_TO_RUN, scriptToRun);
-                parentConfig.put(SCRIPT_CONFIG, scriptName);
+                Map<String, Object> executorConfig = (Map<String, Object>) scriptConfig.computeIfAbsent(EXECUTOR_FIELD, (key -> new HashMap<String, Object>()));
+                executorConfig.putIfAbsent(SCRIPT_TO_RUN, scriptToRun);
+                executorConfig.put(SCRIPT_CONFIG, scriptName);
                 GmpConfigObject yamlCfg = null;
                 String yamlToInclude = null;
 
                 ConfigObject parentConfigObject = null;
-                if (!StringUtils.isEmpty(parentConfig.get(INCLUDE_CONFIG_FIELD))) {
-                    File fParentConfig = new File(scriptGroupFolder + File.separator + parentConfig.get(INCLUDE_CONFIG_FIELD));
-                    if (fParentConfig.exists()) {
-                        parentConfigObject = buildConfig(scriptGroupFolder, (String) parentConfig.get(INCLUDE_CONFIG_FIELD), environment, configs, scriptConfig);
-
+                if (!StringUtils.isEmpty(executorConfig.get(INCLUDE_CONFIG_FIELD))) {
+                    org.springframework.core.io.Resource parentConfig = GmpResourceUtils.getRelativeResource(scriptGroupFolder, executorConfig.get(INCLUDE_CONFIG_FIELD).toString());
+                    if (parentConfig.exists()) {
+                        parentConfigObject = buildConfig(scriptGroupFolder, (String) executorConfig.get(INCLUDE_CONFIG_FIELD), environment, configs, scriptConfig);
                     } else {
                         if (logger.isInfoEnabled()) {
-                            logger.info("File {} doesn't exist.", parentConfig);
+                            logger.info("File {} doesn't exist.", executorConfig);
                         }
                     }
                 }
 
-                if (!StringUtils.isEmpty(parentConfig.get(INCLUDE_YAML_FIELD))) {
-                    yamlToInclude = parentConfig.get(INCLUDE_YAML_FIELD).toString();
+                if (!StringUtils.isEmpty(executorConfig.get(INCLUDE_YAML_FIELD))) {
+                    yamlToInclude = executorConfig.get(INCLUDE_YAML_FIELD).toString();
                 }
 
                 if (parentConfigObject != null) {
@@ -215,6 +216,11 @@ public class ScriptContextBuilder {
                     yamlCfg.mapMerge(scriptConfig);
                     scriptConfig = yamlCfg;
                 }
+            } else {
+                scriptConfig = new ConfigObject();
+                Map<String, Object> executorConfig = (Map<String, Object>) scriptConfig.computeIfAbsent(EXECUTOR_FIELD, (key -> new HashMap<String, Object>()));
+                executorConfig.putIfAbsent(SCRIPT_TO_RUN, scriptToRun);
+                executorConfig.put(SCRIPT_CONFIG, scriptName);
             }
         }
         return scriptConfig;

@@ -12,19 +12,25 @@
  *  limitations under the License.
  *  ***************************************************************************
  */
+package com.epam.gmp;
 
-package com.epam.gmp.service;
-
-import com.epam.gmp.ScriptContext;
-import com.epam.gmp.ScriptInitializationException;
-import groovy.lang.Binding;
-import groovy.lang.Script;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 
-public interface IGroovyScriptEngineService {
-    Script createScript(ScriptContext scriptContext) throws ScriptInitializationException;
+import java.io.IOException;
 
-    Script createScript(Resource rootFolder, String scriptName, Binding binding) throws ScriptInitializationException;
+public class GmpResourceUtils {
+    private static final Logger logger = LoggerFactory.getLogger(GmpResourceUtils.class);
 
-    void runScript(ScriptContext scriptContext);
+    public static Resource getRelativeResource(Resource base, String relPath) throws ScriptInitializationException {
+        try {
+            return base.createRelative(relPath);
+        } catch (IOException e) {
+            if (logger.isErrorEnabled()) {
+                logger.error("Unable to create relative resource for: " + base.toString() + relPath);
+            }
+            throw new ScriptInitializationException(e);
+        }
+    }
 }

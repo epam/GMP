@@ -15,25 +15,46 @@
 
 package com.epam.gmp.service.yaml;
 
+import com.epam.gmp.GmpResourceUtils;
+import com.epam.gmp.ScriptInitializationException;
 import freemarker.cache.ClassTemplateLoader;
-import freemarker.cache.FileTemplateLoader;
 import freemarker.cache.MultiTemplateLoader;
 import freemarker.cache.TemplateLoader;
+import freemarker.cache.URLTemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
+import org.springframework.core.io.Resource;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.URL;
 
 
 public class YamlFreemarkerEngine {
     private Configuration config;
 
-    public YamlFreemarkerEngine(ClassLoader classLoader, String path, String baseFolder) throws IOException {
+    public class GmpURLTemplateLoader extends URLTemplateLoader {
+        Resource baseFolder;
+
+        public GmpURLTemplateLoader(Resource baseFolder) {
+            this.baseFolder = baseFolder;
+        }
+
+        @Override
+        protected URL getURL(String name) {
+            try {
+                return GmpResourceUtils.getRelativeResource(baseFolder, name).getURL();
+            } catch (ScriptInitializationException | IOException ex) {
+                //TODO
+            }
+            return null;
+        }
+    }
+
+    public YamlFreemarkerEngine(ClassLoader classLoader, String path, Resource baseFolder) throws IOException {
         Configuration cfg = new Configuration(Configuration.VERSION_2_3_25);
-        TemplateLoader[] loaders = {new ClassTemplateLoader(classLoader, path), new FileTemplateLoader(new File(baseFolder))};
+        TemplateLoader[] loaders = {new ClassTemplateLoader(classLoader, path), new GmpURLTemplateLoader(baseFolder)};
         cfg.setTemplateLoader(new MultiTemplateLoader(loaders));
         cfg.setDefaultEncoding("UTF-8");
         cfg.setTemplateExceptionHandler(freemarker.template.TemplateExceptionHandler.RETHROW_HANDLER);

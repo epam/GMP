@@ -28,10 +28,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 
-import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,27 +49,43 @@ public class GMPConfig {
     @Autowired
     private GMPContext gmpContext;
 
+
     @Bean(name = "gmpHome")
     public static String gmpHome() {
         return System.getProperty("gmp.home");
+    }
+
+    @Bean(name = "gmpHomeResource")
+    public static Resource gmpHomeURL() {
+        Resource gmpHomeUrl;
+        String pGmpHome = gmpHome();
+        try {
+            if (pGmpHome != null) {
+                gmpHomeUrl = new UrlResource(pGmpHome);
+            } else {
+                gmpHomeUrl = new ClassPathResource("gmp-home/");
+            }
+        } catch (MalformedURLException e) {
+            throw new ScriptContextException("Unable to initialize gmpHome", e);
+        }
+        return gmpHomeUrl;
     }
 
     @Bean(name = "GMPProperties")
     public static PropertySourcesPlaceholderConfigurer properties() {
         PropertySourcesPlaceholderConfigurer pspc = new PropertySourcesPlaceholderConfigurer();
         Resource[] resources;
-        String pesHome = gmpHome();
-        if (pesHome != null) {
-            File gmpProperties = new File(pesHome + File.pathSeparator + GMP_PROPERTIES);
-            if (gmpProperties.exists()) {
-                resources = new Resource[]{new FileSystemResource(gmpProperties)};
-                logger.info("Loading config from file system...");
+        try {
+            Resource homeResource = gmpHomeURL().createRelative(GMP_PROPERTIES);
+            if (homeResource.exists()) {
+                resources = new Resource[]{homeResource};
             } else {
-                logger.info("Loading config from classpath...");
-                resources = new ClassPathResource[]{new ClassPathResource(GMP_PROPERTIES)};
+                resources = new ClassPathResource[]{new ClassPathResource("gmp-home/" + GMP_PROPERTIES)};
             }
-        } else {
-            throw new ScriptContextException("gmp.home is not set!");
+
+
+        } catch (IOException e) {
+            throw new ScriptContextException("Unable to initialize " + GMP_PROPERTIES, e);
         }
         pspc.setLocations(resources);
         pspc.setIgnoreUnresolvablePlaceholders(true);

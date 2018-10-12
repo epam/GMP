@@ -15,3 +15,19 @@ is a tool to run groovy scripts organized in folder structure with configuration
 3. Configuration properties injection. (No need to implement configuration options.)
 4. GMP is based on Spring. So it is could be easy extended.
 
+## Changes
+
+### v 0.0.15
+
+#### Environment variables
+
+1. gmp.home - path to gmp-home folder in URL format example: -Dgmp.home=file:///d:/gmp-home
+2. gmp.log.home - path to logs folder example:  -Dgmp.log.home=d:/gmp-home
+
+#### Execution
+
+java -jar {jarname} -Dgmp.home=file:///d:/gmp-home -Dgmp.log.home=d:/gmp-home {environment}@{script-path}/{script-name} {script params}
+
+
+
+ 

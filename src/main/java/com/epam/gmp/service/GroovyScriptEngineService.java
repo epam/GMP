@@ -16,6 +16,7 @@
 package com.epam.gmp.service;
 
 import com.epam.dep.esp.common.json.JsonMapper;
+import com.epam.gmp.GmpResourceUtils;
 import com.epam.gmp.ScriptClassloader;
 import com.epam.gmp.ScriptContext;
 import com.epam.gmp.ScriptInitializationException;
@@ -27,6 +28,8 @@ import groovy.util.ScriptException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -40,6 +43,7 @@ import java.util.*;
 
 @Service("GroovyScriptEngineService")
 @Scope(value = "singleton")
+
 public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     public static final String SCRIPTS_FOLDER = "scripts";
     public static final String GROOVY_ROOT_FOLDER = "groovyRoot";
@@ -51,15 +55,23 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     @Resource(name = "gmpHome")
     private String gmpHome;
 
+    @Resource(name = "gmpHomeResource")
+    private org.springframework.core.io.Resource gmpHomeResource;
+
     @Resource(name = "ResultMap")
     private Map<String, Object> resultMap;
 
-    private String groovyRoot;
+    private org.springframework.core.io.Resource groovyRoot;
 
     @PostConstruct
     private void init() {
         gseCache = new HashMap<>();
-        groovyRoot = gmpHome + File.separator + SCRIPTS_FOLDER + File.separator + GROOVY_ROOT_FOLDER;
+        try {
+            groovyRoot = GmpResourceUtils.getRelativeResource(gmpHomeResource, "/" + SCRIPTS_FOLDER + "/" + GROOVY_ROOT_FOLDER+"/");
+        } catch (ScriptInitializationException e) {
+            //TODO
+            groovyRoot = null;
+        }
     }
 
     /**
@@ -67,18 +79,18 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
      * @return GroovyScriptEngine instance
      * @throws ScriptInitializationException in case if it is not possible to load script
      */
-    public GroovyScriptEngine getEngine(String rootFolder) throws ScriptInitializationException {
-        GroovyScriptEngine engine = gseCache.get(rootFolder);
+    public GroovyScriptEngine getEngine(org.springframework.core.io.Resource rootFolder) throws ScriptInitializationException {
+        GroovyScriptEngine engine = gseCache.get(rootFolder.toString());
         try {
             if (engine == null) {
-                String[] roots = new String[]{groovyRoot, rootFolder};
+                URL[] roots = new URL[]{groovyRoot.exists() ? groovyRoot.getURL() : gmpHomeResource.getURL(), rootFolder.getURL()};
                 ClassLoader scriptClassLoader = buildClassloader(rootFolder);
                 if (scriptClassLoader != null) {
                     engine = new GroovyScriptEngine(roots, scriptClassLoader);
                 } else {
                     engine = new GroovyScriptEngine(roots, this.getClass().getClassLoader());
                 }
-                gseCache.put(rootFolder, engine);
+                gseCache.put(rootFolder.toString(), engine);
             }
             return engine;
         } catch (IOException e) {
@@ -92,7 +104,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
         return createScript(scriptContext.getRoot(), scriptContext.getScriptName(), new Binding(scriptContext.getParams()));
     }
 
-    public Script createScript(String rootFolder, String scriptName, Binding binding) throws ScriptInitializationException {
+    public Script createScript(org.springframework.core.io.Resource rootFolder, String scriptName, Binding binding) throws ScriptInitializationException {
         GroovyScriptEngine gse = getEngine(rootFolder);
         try {
             return gse.createScript(scriptName, binding);
@@ -106,25 +118,36 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
         }
     }
 
-    protected ClassLoader buildClassloader(String sPath) {
-        File libs = new File(sPath + File.separator + LIB_FOLDER);
+
+    protected ClassLoader buildClassloader(org.springframework.core.io.Resource scriptPath) {
         ClassLoader scriptClassLoader = null;
-        if (libs.exists()) {
-            try {
-                String[] jars = libs.list(new LibFilter());
+
+        org.springframework.core.io.Resource libPath = null;
+        try {
+            libPath = scriptPath.createRelative(LIB_FOLDER);
+            if (libPath.exists()) {
+                ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+                org.springframework.core.io.Resource[] jarResources = resolver.getResources(libPath.getURL().toString() + "/*.jar");
                 List<URL> urls = new ArrayList<>();
-                for (String jar : jars) {
-                    File jarFile = new File(libs.getAbsolutePath() + File.separator + jar);
-                    urls.add(jarFile.toURI().toURL());
+                for (org.springframework.core.io.Resource resource : jarResources) {
+                    try {
+                        urls.add(resource.getURL());
+                    } catch (IOException ex) {
+                        if (logger.isWarnEnabled()) {
+                            logger.warn("Unable to resolve url for " + resource.toString(), ex);
+                        }
+                    }
                 }
                 URL[] aUrls = new URL[urls.size()];
                 scriptClassLoader = new ScriptClassloader(urls.toArray(aUrls), Thread.currentThread().getContextClassLoader());
-
-            } catch (MalformedURLException e) {
-                logger.error("Unable to setup classloader for: " + libs.getAbsolutePath());
+            } else {
+                scriptClassLoader = new ScriptClassloader(new URL[0], Thread.currentThread().getContextClassLoader());
             }
-        } else {
-            scriptClassLoader = new ScriptClassloader(new URL[0], Thread.currentThread().getContextClassLoader());
+
+        } catch (IOException e) {
+            if (logger.isErrorEnabled()) {
+                logger.error("unable to create relative LIB path.");
+            }
         }
         return scriptClassLoader;
     }

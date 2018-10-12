@@ -1,6 +1,6 @@
 /*
  *  /***************************************************************************
- *  Copyright (c) 2017, EPAM SYSTEMS INC
+ * Copyright (c) 2017, EPAM SYSTEMS INC
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
@@ -13,18 +13,8 @@
  *  ***************************************************************************
  */
 
-package com.epam.gmp.service;
-
-import com.epam.gmp.ScriptContext;
-import com.epam.gmp.ScriptInitializationException;
-import groovy.lang.Binding;
-import groovy.lang.Script;
-import org.springframework.core.io.Resource;
-
-public interface IGroovyScriptEngineService {
-    Script createScript(ScriptContext scriptContext) throws ScriptInitializationException;
-
-    Script createScript(Resource rootFolder, String scriptName, Binding binding) throws ScriptInitializationException;
-
-    void runScript(ScriptContext scriptContext);
+EXECUTOR {
+    includeConfig = '002-test.config.groovy'
+    script = '002-test.groovy'
 }
+
