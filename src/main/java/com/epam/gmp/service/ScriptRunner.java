@@ -15,17 +15,23 @@
 
 package com.epam.gmp.service;
 
-import com.epam.gmp.ScriptContext;
-import com.epam.gmp.ScriptInitializationException;
+import com.epam.gmp.ExportBinding;
 import com.epam.gmp.ScriptResult;
-import groovy.lang.Binding;
-import groovy.lang.Script;
-import org.springframework.core.io.Resource;
+import com.epam.gmp.process.GroovyThread;
+import com.epam.gmp.process.QueuedProcessService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
-public interface IGroovyScriptEngineService<T> {
-    Script createScript(ScriptContext scriptContext) throws ScriptInitializationException;
+import java.util.List;
+import java.util.concurrent.Future;
 
-    Script createScript(Resource rootFolder, String scriptName, Binding binding) throws ScriptInitializationException;
+@ExportBinding
+@Service("ScriptRunner")
+public class ScriptRunner {
+    @Autowired
+    QueuedProcessService processService;
 
-    <R> ScriptResult<R> runScript(ScriptContext scriptContext);
+    public <R> Future<ScriptResult<R>> run(String name, List<String> params) {
+        return processService.execute(GroovyThread.class, name, params);
+    }
 }

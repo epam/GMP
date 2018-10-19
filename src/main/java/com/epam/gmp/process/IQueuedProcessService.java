@@ -15,10 +15,14 @@
 
 package com.epam.gmp.process;
 
-public interface IQueuedProcessService {
-    void execute(IQueuedThread process);
+import com.epam.gmp.ScriptResult;
 
-    <T extends IQueuedThread> void execute(Class<T> bean, Object... args);
+import java.util.concurrent.Future;
+
+public interface IQueuedProcessService {
+    <R> Future<ScriptResult<R>> execute(IQueuedThread<R> process);
+
+    <C extends IQueuedThread, R> Future<ScriptResult<R>> execute(Class<C> bean, Object... args);
 
     int getQueueSize();
 

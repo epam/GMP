@@ -15,6 +15,7 @@
 
 package com.epam.gmp.process;
 
+import com.epam.gmp.ScriptResult;
 import com.epam.gmp.service.GMPContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,10 +25,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service("QueuedProcessService")
 @Scope(value = "singleton")
@@ -60,19 +58,21 @@ public class QueuedProcessService implements IQueuedProcessService {
         }
     }
 
-    public synchronized void execute(IQueuedThread process) {
+    public <R> Future<ScriptResult<R>> execute(IQueuedThread<R> process) {
         if (threadPool != null && !threadPool.isShutdown()) {
-            threadPool.execute(process);
+            Future<ScriptResult<R>> result = threadPool.submit(process);
 
             if (logger.isInfoEnabled()) {
                 logger.info("Groovy pool size: " + queue.size());
             }
+            return result;
         }
+        return null;
     }
 
     @Override
-    public <T extends IQueuedThread> void execute(Class<T> bean, Object... args) {
-        execute(gmpContext.getApplicationContext().getBean(bean, args));
+    public <C extends IQueuedThread, R> Future<ScriptResult<R>> execute(Class<C> bean, Object... args) {
+        return execute(gmpContext.getApplicationContext().getBean(bean, args));
     }
 
     public void shutdown() {

@@ -15,6 +15,10 @@
 
 package com.epam.gmp.process;
 
-public interface IQueuedThread extends Runnable {
+import com.epam.gmp.ScriptResult;
+
+import java.util.concurrent.Callable;
+
+public interface IQueuedThread<T> extends Callable<ScriptResult<T>> {
     String getKey();
 }

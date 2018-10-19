@@ -16,10 +16,7 @@
 package com.epam.gmp.service;
 
 import com.epam.dep.esp.common.json.JsonMapper;
-import com.epam.gmp.GmpResourceUtils;
-import com.epam.gmp.ScriptClassloader;
-import com.epam.gmp.ScriptContext;
-import com.epam.gmp.ScriptInitializationException;
+import com.epam.gmp.*;
 import groovy.lang.Binding;
 import groovy.lang.Script;
 import groovy.util.GroovyScriptEngine;
@@ -34,17 +31,14 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 
 @Service("GroovyScriptEngineService")
 @Scope(value = "singleton")
 
-public class GroovyScriptEngineService implements IGroovyScriptEngineService {
+public class GroovyScriptEngineService implements IGroovyScriptEngineService<Object> {
     public static final String SCRIPTS_FOLDER = "scripts";
     public static final String GROOVY_ROOT_FOLDER = "groovyRoot";
     public static final String LIB_FOLDER = "lib";
@@ -67,7 +61,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     private void init() {
         gseCache = new HashMap<>();
         try {
-            groovyRoot = GmpResourceUtils.getRelativeResource(gmpHomeResource, "/" + SCRIPTS_FOLDER + "/" + GROOVY_ROOT_FOLDER+"/");
+            groovyRoot = GmpResourceUtils.getRelativeResource(gmpHomeResource, "/" + SCRIPTS_FOLDER + "/" + GROOVY_ROOT_FOLDER + "/");
         } catch (ScriptInitializationException e) {
             //TODO
             groovyRoot = null;
@@ -172,7 +166,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     }
 
     @Override
-    public void runScript(ScriptContext scriptContext) {
+    public <R> ScriptResult<R> runScript(ScriptContext scriptContext) {
         try {
             // fix issue with jackson caching
             JsonMapper.getInstance().cleanCache();
@@ -193,6 +187,10 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
                         logger.info(result.toString());
                     }
                 }
+
+                if (result instanceof ScriptResult) {
+                    return (ScriptResult<R>) result;
+                }
             }
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
@@ -200,12 +198,6 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
                 putResult(1, scriptContext);
             }
         }
-    }
-
-    private class LibFilter implements FilenameFilter {
-        @Override
-        public boolean accept(File dir, String name) {
-            return name.toLowerCase().endsWith(".jar");
-        }
+        return null;
     }
 }

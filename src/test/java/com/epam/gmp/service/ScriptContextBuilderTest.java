@@ -137,6 +137,5 @@ public class ScriptContextBuilderTest {
         assertEquals("002-test.groovy", scriptContext.getScriptName());
         assertEquals("@test_02/002-test.groovy", scriptContext.getScriptId());
         assertEquals("test_02-002-script", ((Map) scriptContext.getParams().get("gConfig")).get("testData_001"));
-
     }
 }

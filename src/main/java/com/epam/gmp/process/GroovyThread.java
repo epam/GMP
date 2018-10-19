@@ -17,6 +17,7 @@ package com.epam.gmp.process;
 
 import com.epam.gmp.ScriptContext;
 import com.epam.gmp.ScriptInitializationException;
+import com.epam.gmp.ScriptResult;
 import com.epam.gmp.service.IGroovyScriptEngineService;
 import com.epam.gmp.service.ScriptContextBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +31,7 @@ import java.util.List;
 @SuppressWarnings("unchecked")
 @Component("GroovyThread")
 @Scope(value = "prototype")
-public class GroovyThread implements IQueuedThread {
+public class GroovyThread implements IQueuedThread<Object> {
 
     @Autowired
     private ScriptContextBuilder scriptContextBuilder;
@@ -62,8 +63,8 @@ public class GroovyThread implements IQueuedThread {
     }
 
 
-    public void run() {
-        groovyScriptEngineService.runScript(scriptContext);
+    public ScriptResult call() {
+        return groovyScriptEngineService.runScript(scriptContext);
     }
 
     public String getKey() {
