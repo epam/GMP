@@ -25,8 +25,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @SuppressWarnings("unchecked")
 @Component("GroovyThread")
@@ -44,24 +45,27 @@ public class GroovyThread implements IQueuedThread<Object> {
 
 
     private String scriptPath;
-    private List<String> cmdLineParams;
+    private Map<String, Object> params = new HashMap<>();
 
     public GroovyThread(String scriptPath) {
         this.scriptPath = scriptPath;
-        this.cmdLineParams = Collections.emptyList();
     }
 
-    public GroovyThread(String scriptPath, List<String> cmdLineParams) {
+    public GroovyThread(String scriptPath, List<String> params) {
         this.scriptPath = scriptPath;
-        this.cmdLineParams = cmdLineParams;
+        this.params.put("cmdLine",params);
+    }
+
+    public GroovyThread(String scriptPath, Map<String, Object> params) {
+        this.scriptPath = scriptPath;
+        this.params = params;
     }
 
     @PostConstruct
     public void init() throws ScriptInitializationException {
-        this.scriptContext = scriptContextBuilder.buildContextFor(scriptPath, cmdLineParams);
+        this.scriptContext = scriptContextBuilder.buildContextFor(scriptPath, params);
         this.resultKey = scriptContext.getScriptId();
     }
-
 
     public ScriptResult call() {
         return groovyScriptEngineService.runScript(scriptContext);

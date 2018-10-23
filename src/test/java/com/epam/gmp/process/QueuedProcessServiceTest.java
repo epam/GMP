@@ -25,6 +25,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -41,4 +42,21 @@ public class QueuedProcessServiceTest {
         Assert.assertEquals(Integer.valueOf(2), future.get().getResult());
     }
 
+    @Test
+    public void executor_02_0_Test() throws ExecutionException, InterruptedException {
+        Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy", Collections.EMPTY_LIST);
+        Assert.assertEquals("env", future.get().getResult());
+    }
+
+    @Test
+    public void executor_02_1_Test() throws ExecutionException, InterruptedException {
+        Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy", new HashMap<>());
+        Assert.assertEquals("env", future.get().getResult());
+    }
+
+    @Test
+    public void executor_02_2_Test() throws ExecutionException, InterruptedException {
+        Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy");
+        Assert.assertEquals("env", future.get().getResult());
+    }
 }

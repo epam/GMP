@@ -55,7 +55,7 @@ public class ScriptContextBuilderTest {
     //common-config: is not exist
     //script-config: is not exist
     public void buildContextForTest_01_001() throws IOException, ScriptInitializationException {
-        ScriptContext scriptContext = testObj.buildContextFor("@test_01/001-test.groovy", Collections.emptyList());
+        ScriptContext scriptContext = testObj.buildContextFor("@test_01/001-test.groovy", null);
         assertTrue(scriptContext.getParams().get("cmdLine") == Collections.emptyList());
         assertNotNull(scriptContext.getParams().get("logger"));
         assertEquals("001-test.groovy", scriptContext.getScriptName());
@@ -69,7 +69,7 @@ public class ScriptContextBuilderTest {
     //script-config: exists
 
     public void buildContextForTest_01_002() throws IOException, ScriptInitializationException {
-        ScriptContext scriptContext = testObj.buildContextFor("@test_01/002-test.groovy", Collections.emptyList());
+        ScriptContext scriptContext = testObj.buildContextFor("@test_01/002-test.groovy", null);
         assertTrue(scriptContext.getParams().get("cmdLine") == Collections.emptyList());
         assertNotNull(scriptContext.getParams().get("logger"));
         assertEquals("002-test.groovy", scriptContext.getScriptName());
@@ -84,7 +84,7 @@ public class ScriptContextBuilderTest {
     //script-config: exists
 
     public void buildContextForTest_01_003() throws IOException, ScriptInitializationException {
-        ScriptContext scriptContext = testObj.buildContextFor("@test_01/003-test.config.groovy", Collections.emptyList());
+        ScriptContext scriptContext = testObj.buildContextFor("@test_01/003-test.config.groovy", null);
         assertTrue(scriptContext.getParams().get("cmdLine") == Collections.emptyList());
         assertNotNull(scriptContext.getParams().get("logger"));
         assertEquals("002-test.groovy", scriptContext.getScriptName());
@@ -99,7 +99,7 @@ public class ScriptContextBuilderTest {
     //script-config: exists
 
     public void buildContextForTest_01_004() throws IOException, ScriptInitializationException {
-        ScriptContext scriptContext = testObj.buildContextFor("@test_01/004-test.config.groovy", Collections.emptyList());
+        ScriptContext scriptContext = testObj.buildContextFor("@test_01/004-test.config.groovy", null);
         assertTrue(scriptContext.getParams().get("cmdLine") == Collections.emptyList());
         assertNotNull(scriptContext.getParams().get("logger"));
         assertEquals("002-test.groovy", scriptContext.getScriptName());
@@ -115,11 +115,12 @@ public class ScriptContextBuilderTest {
     //script-config: is not exist
 
     public void buildContextForTest_02_001() throws IOException, ScriptInitializationException {
-        ScriptContext scriptContext = testObj.buildContextFor("@test_02/001-test.groovy", Collections.emptyList());
+        ScriptContext scriptContext = testObj.buildContextFor("env@test_02/001-test.groovy", null);
+        assertEquals("env", scriptContext.getParams().get("gEnv"));
         assertTrue(scriptContext.getParams().get("cmdLine") == Collections.emptyList());
         assertNotNull(scriptContext.getParams().get("logger"));
         assertEquals("001-test.groovy", scriptContext.getScriptName());
-        assertEquals("@test_02/001-test.groovy", scriptContext.getScriptId());
+        assertEquals("env@test_02/001-test.groovy", scriptContext.getScriptId());
         assertEquals("test_02-001-common", ((Map) scriptContext.getParams().get("gConfig")).get("testData_001"));
 
     }
@@ -131,7 +132,8 @@ public class ScriptContextBuilderTest {
     //script-config: exist
 
     public void buildContextForTest_02_002() throws IOException, ScriptInitializationException {
-        ScriptContext scriptContext = testObj.buildContextFor("@test_02/002-test.groovy", Collections.emptyList());
+        ScriptContext scriptContext = testObj.buildContextFor("@test_02/002-test.groovy", null);
+        assertEquals("", scriptContext.getParams().get("gEnv"));
         assertTrue(scriptContext.getParams().get("cmdLine") == Collections.emptyList());
         assertNotNull(scriptContext.getParams().get("logger"));
         assertEquals("002-test.groovy", scriptContext.getScriptName());

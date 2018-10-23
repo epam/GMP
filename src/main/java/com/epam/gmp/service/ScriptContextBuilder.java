@@ -73,7 +73,7 @@ public class ScriptContextBuilder {
     @Autowired
     private YamlLoader yamlLoader;
 
-    public ScriptContext buildContextFor(String scriptPath, List<String> cmdLineParams) throws ScriptInitializationException {
+    public ScriptContext buildContextFor(String scriptPath, Map<String, Object> params) throws ScriptInitializationException {
         Matcher pathMatcher = SCRIPT_PATTERN.matcher(scriptPath);
 
         if (!pathMatcher.matches()) {
@@ -117,10 +117,14 @@ public class ScriptContextBuilder {
             //ADD logger
             HashMap<String, Object> paramMap = new HashMap<>();
             Logger scriptLogger = LoggerFactory.getLogger(scriptName.replaceAll("[.]", "_"));
+            if (params != null) {
+                paramMap.putAll(params);
+            }
+            paramMap.computeIfAbsent("cmdLine", (key -> Collections.emptyList()));
             paramMap.put("logger", scriptLogger);
-
             paramMap.put("gConfig", groovyConfig);
-            paramMap.put("cmdLine", cmdLineParams);
+            paramMap.put("gEnv", environment);
+
             if (logger.isInfoEnabled()) {
                 logger.info("Groovy based script configuration:\n" + scriptName + ":" + configToString(groovyConfig));
             }
