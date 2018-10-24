@@ -19,20 +19,22 @@ import com.epam.gmp.ScriptResult;
 import com.epam.gmp.service.GMPContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Service("QueuedProcessService")
 @Scope(value = "singleton")
 public class QueuedProcessService implements IQueuedProcessService {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
-    private ExecutorService threadPool;
+    private QueuedProcessThreadPoolExecutor threadPool;
     private ArrayBlockingQueue<Runnable> queue;
 
     @Value("${groovy.thread.pool.size}")
@@ -43,9 +45,6 @@ public class QueuedProcessService implements IQueuedProcessService {
 
     @Value("${groovy.thread.timeout}")
     private int threadTimeout = 30;
-
-    @Autowired
-    private GMPContext gmpContext;
 
     @PostConstruct
     public void initialize() {
@@ -72,18 +71,33 @@ public class QueuedProcessService implements IQueuedProcessService {
 
     @Override
     public <C extends IQueuedThread, R> Future<ScriptResult<R>> execute(Class<C> bean, Object... args) {
-        return execute(gmpContext.getApplicationContext().getBean(bean, args));
+        return execute(GMPContext.getApplicationContext().getBean(bean, args));
     }
 
     public void shutdown() {
         shutdown(threadTimeout);
     }
 
+    @SuppressWarnings("squid:S2142")
     public void shutdown(int timeout) {
+        if (logger.isInfoEnabled()) {
+            logger.info("Thread pool shutdown requested");
+        }
+        try {
+            while (threadPool.getActiveCount() + getQueueSize() != 0) {
+                if (logger.isInfoEnabled()) {
+                    logger.info("{} Threads still running... await for termination.", threadPool.getActiveCount());
+                }
+                synchronized (threadPool) {
+                    threadPool.wait(TimeUnit.MILLISECONDS.convert(timeout, TimeUnit.MINUTES));
+                }
+            }
+        } catch (InterruptedException e) {
+            logger.error("Thread pool wait threads to stop timeout", e);
+        }
         threadPool.shutdown();
         try {
             long start = System.currentTimeMillis();
-            logger.info("Thread pool shutdown requested");
             if (!threadPool.awaitTermination(timeout, TimeUnit.MINUTES)) {
                 logger.info("Thread pool shutdown timeout");
             }

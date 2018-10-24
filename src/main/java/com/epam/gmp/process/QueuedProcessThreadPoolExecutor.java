@@ -59,4 +59,13 @@ public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
             return t;
         }
     }
+
+    @Override
+    protected void afterExecute(Runnable r, Throwable t) {
+        super.afterExecute(r, t);
+        synchronized (this) {
+            notifyAll();
+        }
+    }
+
 }
