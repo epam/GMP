@@ -60,9 +60,8 @@ public class QueuedProcessService implements IQueuedProcessService {
     public <R> Future<ScriptResult<R>> execute(IQueuedThread<R> process) {
         if (threadPool != null && !threadPool.isShutdown()) {
             Future<ScriptResult<R>> result = threadPool.submit(process);
-
             if (logger.isInfoEnabled()) {
-                logger.info("Groovy pool size: " + queue.size());
+                logger.info("Exec triggered. Threads running (approximate)=({}), queue size=({}) ", threadPool.getActiveCount(), getQueueSize());
             }
             return result;
         }
@@ -81,28 +80,16 @@ public class QueuedProcessService implements IQueuedProcessService {
     @SuppressWarnings("squid:S2142")
     public void shutdown(int timeout) {
         if (logger.isInfoEnabled()) {
-            logger.info("Thread pool shutdown requested");
+            logger.info("Global shutdown requested");
         }
-        try {
-            while (threadPool.getActiveCount() + getQueueSize() != 0) {
-                if (logger.isInfoEnabled()) {
-                    logger.info("{} Threads still running... await for termination.", threadPool.getActiveCount());
-                }
-                synchronized (threadPool) {
-                    threadPool.wait(TimeUnit.MILLISECONDS.convert(timeout, TimeUnit.MINUTES));
-                }
-            }
-        } catch (InterruptedException e) {
-            logger.error("Thread pool wait threads to stop timeout", e);
-        }
-        threadPool.shutdown();
+        threadPool.shutdown(timeout);
         try {
             long start = System.currentTimeMillis();
             if (!threadPool.awaitTermination(timeout, TimeUnit.MINUTES)) {
-                logger.info("Thread pool shutdown timeout");
+                logger.info("ThreadPool shutdown timeout");
             }
             if (logger.isInfoEnabled()) {
-                logger.info("Thread pool has been terminated in: {} millis.", System.currentTimeMillis() - start);
+                logger.info("ThreadPool has been terminated in: {} millis.", System.currentTimeMillis() - start);
             }
         } catch (InterruptedException e) {
             logger.error("Unable to stop thread pool correctly.", e);

@@ -33,16 +33,21 @@ import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.io.IOException;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service("GroovyScriptEngineService")
 @Scope(value = "singleton")
-
+//Should support multithreading
 public class GroovyScriptEngineService implements IGroovyScriptEngineService<Object> {
     public static final String SCRIPTS_FOLDER = "scripts";
     public static final String GROOVY_ROOT_FOLDER = "groovyRoot";
     public static final String LIB_FOLDER = "lib";
     public static final String NULL_RESULT = ":null";
+
     private static final Logger logger = LoggerFactory.getLogger(GroovyScriptEngineService.class);
     private Map<String, GroovyScriptEngine> gseCache;
 
@@ -59,7 +64,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService<Obj
 
     @PostConstruct
     private void init() {
-        gseCache = new HashMap<>();
+        gseCache = new ConcurrentHashMap<>();
         try {
             groovyRoot = GmpResourceUtils.getRelativeResource(gmpHomeResource, "/" + SCRIPTS_FOLDER + "/" + GROOVY_ROOT_FOLDER + "/");
         } catch (ScriptInitializationException e) {
@@ -91,7 +96,6 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService<Obj
             throw new ScriptInitializationException("Unable to initialize groovy root at: " + rootFolder, e);
         }
     }
-
 
     @Override
     public Script createScript(ScriptContext scriptContext) throws ScriptInitializationException {
@@ -170,22 +174,21 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService<Obj
         try {
             // fix issue with jackson caching
             JsonMapper.getInstance().cleanCache();
-
             Script script = createScript(scriptContext);
             if (script != null) {
+                if (logger.isInfoEnabled()) {
+                    logger.info("Start script: <{}>", scriptContext.getScriptId());
+                }
                 Object result = script.run();
+
+                if (logger.isInfoEnabled()) {
+                    logger.info("Script finished: <{}>={}", scriptContext.getScriptId(), result == null ? NULL_RESULT : result.toString());
+                }
+
                 if (result instanceof Map) {
                     putResult(Collections.unmodifiableMap((Map) result), scriptContext);
                 } else {
                     putResult(result, scriptContext);
-                }
-
-                if (logger.isInfoEnabled()) {
-                    if (result == null) {
-                        logger.info("Script doesn't return anything, converting to " + NULL_RESULT);
-                    } else {
-                        logger.info(result.toString());
-                    }
                 }
 
                 if (result instanceof ScriptResult) {

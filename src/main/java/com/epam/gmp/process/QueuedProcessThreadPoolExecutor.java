@@ -15,11 +15,18 @@
 
 package com.epam.gmp.process;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
+
+    final AtomicInteger incompleteScripts = new AtomicInteger(0);
 
     public QueuedProcessThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue) {
         super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
@@ -61,11 +68,53 @@ public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
     }
 
     @Override
+    public Future<?> submit(Runnable task) {
+        incompleteScripts.incrementAndGet();
+        return super.submit(task);
+    }
+
+    @Override
+    public <T> Future<T> submit(Runnable task, T result) {
+        incompleteScripts.incrementAndGet();
+        return super.submit(task, result);
+    }
+
+    @Override
+    public <T> Future<T> submit(Callable<T> task) {
+        incompleteScripts.incrementAndGet();
+        return super.submit(task);
+    }
+
+    @Override
     protected void afterExecute(Runnable r, Throwable t) {
-        super.afterExecute(r, t);
-        synchronized (this) {
-            notifyAll();
+        int i = incompleteScripts.decrementAndGet();
+        synchronized (incompleteScripts) {
+            incompleteScripts.notifyAll();
         }
     }
 
+    public void shutdown(int timeout) {
+        if (logger.isInfoEnabled()) {
+            logger.info("ThreadPool shutdown requested");
+        }
+        try {
+            while (incompleteScripts.get() != 0) {
+                if (logger.isInfoEnabled()) {
+                    logger.info("Scripts still running=({}) Await for termination...", incompleteScripts.get());
+                }
+                synchronized (incompleteScripts) {
+                    incompleteScripts.wait(TimeUnit.MILLISECONDS.convert(timeout, TimeUnit.MINUTES));
+                }
+            }
+            logger.info("No active Scripts. Shutting down...", incompleteScripts.get());
+        } catch (InterruptedException e) {
+            logger.error("ThreadPool wait threads to stop timeout", e);
+        }
+        shutdown();
+    }
+
+    @Override
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        return super.awaitTermination(timeout, unit);
+    }
 }
