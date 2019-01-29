@@ -59,4 +59,14 @@ public class QueuedProcessServiceTest {
         Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy");
         Assert.assertEquals("env", future.get().getResult());
     }
+
+    @Test
+    public void test_04_001_Test() throws ExecutionException, InterruptedException {
+        Future<ScriptResult<String>> future = testObj.execute(GroovyThread.class, "fe1@test_04-env/001-test.groovy");
+        Assert.assertEquals("fe1/file.txt", future.get().getResult());
+
+        future = testObj.execute(GroovyThread.class, "fe2@test_04-env/001-test.groovy");
+        Assert.assertEquals("fe2/file.txt", future.get().getResult());
+    }
+
 }

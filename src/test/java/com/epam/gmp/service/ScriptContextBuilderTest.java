@@ -125,7 +125,6 @@ public class ScriptContextBuilderTest {
 
     }
 
-
     @Test
     //global-config: exists
     //common-config: exist
@@ -140,4 +139,13 @@ public class ScriptContextBuilderTest {
         assertEquals("@test_02/002-test.groovy", scriptContext.getScriptId());
         assertEquals("test_02-002-script", ((Map) scriptContext.getParams().get("gConfig")).get("testData_001"));
     }
+
+    @Test
+    public void  buildContextForTest_04_001() throws ScriptInitializationException {
+        ScriptContext scriptContext = testObj.buildContextFor("@test_04-env/001-test.groovy", null);
+        assertEquals("var1", ((Map) scriptContext.getParams().get("gConfig")).get("var1"));
+        assertEquals("var2=var1+1", ((Map) scriptContext.getParams().get("gConfig")).get("var2"));
+
+    }
+
 }

@@ -32,10 +32,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -57,6 +53,7 @@ public class ScriptContextBuilder {
     private static final String SCRIPTS_FOLDER = "scripts";
     public static final Pattern SCRIPT_PATTERN = Pattern.compile("([^@]*)[@](([^/]*)/((.*)[.]groovy))");
     public static final Pattern SCRIPT_FILE_PATTERN = Pattern.compile("(([^.]*)([.]config)?([.]groovy))");
+    public static final String G_ENV = "gEnv";
 
     @Resource(name = "ExportBindings")
     private Map<String, Object> bindingBeans;
@@ -90,29 +87,21 @@ public class ScriptContextBuilder {
         }
 
         try {
-            ConfigObject groovyConfig = new ConfigObject();
+
+            ConfigStackBuilder confBuilder = new ConfigStackBuilder();
+
             //Global config
-            Script globalConfigScript = groovyScriptEngineService.createScript(scriptGroupPath, GLOBAL_CONFIG, new Binding(bindingBeans));
-            ConfigObject globalConfig = fillParamMapFromGroovy(globalConfigScript, environment, bindingBeans);
-            if (globalConfig != null) {
-                groovyConfig.merge(globalConfig);
-            }
-
+            confBuilder.addLayer(new ConfigLayer(scriptGroupPath, GLOBAL_CONFIG));
             //Common config
-            Script commonConfigScript = groovyScriptEngineService.createScript(scriptGroupPath, COMMON_CONFIG, new Binding(bindingBeans));
-            ConfigObject commonConfig = fillParamMapFromGroovy(commonConfigScript, environment, bindingBeans);
-            if (commonConfig != null) {
-                groovyConfig.merge(commonConfig);
-            }
-
+            confBuilder.addLayer(new ConfigLayer(scriptGroupPath, COMMON_CONFIG));
             //Script config
-            ConfigObject scriptConfig = buildConfig(scriptGroupPath, scriptName, environment, null, null);
-            if (scriptConfig != null) {
-                groovyConfig.merge(scriptConfig);
-            }
+            confBuilder.addLayer(new ConfigLayer(scriptGroupPath, scriptName));
+            Map<String, Object> scriptConfigParameters = new HashMap<>();
+            scriptConfigParameters.put(G_ENV, environment);
+            ConfigObject scriptConfig = buildConfig(confBuilder.build(), environment, scriptConfigParameters);
 
-            scriptName = ((Map) groovyConfig.get(EXECUTOR_FIELD)).get(SCRIPT_TO_RUN).toString();
-            groovyConfig.remove(EXECUTOR_FIELD);
+            scriptName = ((Map) scriptConfig.get(EXECUTOR_FIELD)).get(SCRIPT_TO_RUN).toString();
+            scriptConfig.remove(EXECUTOR_FIELD);
 
             //ADD logger
             HashMap<String, Object> paramMap = new HashMap<>();
@@ -122,11 +111,11 @@ public class ScriptContextBuilder {
             }
             paramMap.computeIfAbsent("cmdLine", (key -> Collections.emptyList()));
             paramMap.put("logger", scriptLogger);
-            paramMap.put("gConfig", groovyConfig);
-            paramMap.put("gEnv", environment);
+            paramMap.put("gConfig", scriptConfig);
+            paramMap.put(G_ENV, environment);
 
             if (logger.isInfoEnabled()) {
-                logger.info("Groovy based script configuration:\n" + scriptName + ":" + configToString(groovyConfig));
+                logger.info("Groovy based script configuration:\n" + scriptName + ":" + configToString(scriptConfig));
             }
             return new ScriptContext(scriptPath, paramMap, scriptGroupPath, scriptName);
 
@@ -135,99 +124,101 @@ public class ScriptContextBuilder {
         }
     }
 
+    private void updateWithDefaultExecutor(ConfigObject scriptConfig, ConfigLayer layer) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> executorConfig = (Map<String, Object>) scriptConfig.computeIfAbsent(EXECUTOR_FIELD, (key -> new HashMap<String, Object>()));
+        executorConfig.putIfAbsent(SCRIPT_TO_RUN, layer.getScriptToRun());
+        executorConfig.put(SCRIPT_CONFIG, layer.getScriptConfig());
+    }
 
-    /**
-     * @param scriptGroupFolder  - group folder
-     * @param scriptName         - script name
-     * @param environment        - environment key
-     * @param configs            - set if already applied configs
-     * @param additionalBindings - additional buinding for inscript substitution
-     * @return ConfigObject for a given script
-     * @throws ScriptInitializationException in case of error
-     */
-    protected ConfigObject buildConfig(org.springframework.core.io.Resource scriptGroupFolder, String scriptName, String environment, Set<String> configs, Map additionalBindings) throws ScriptInitializationException {
-        Matcher fileNameMatcher = SCRIPT_FILE_PATTERN.matcher(scriptName);
+    protected ConfigObject preProcessConfig(Deque<ConfigLayer> configStack, ConfigLayer layer, String environment, Map<String, Object> bindingMap) {
+
         ConfigObject scriptConfig = null;
 
-        String configFileName = scriptName;
-        String scriptToRun;
+        if (layer.getScript() != null) {
+            scriptConfig = fillParamMapFromGroovy(layer.getScript(), environment, bindingMap);
+            updateWithDefaultExecutor(scriptConfig, layer);
+            Map<String, Object> executorConfig = (Map<String, Object>) scriptConfig.get(EXECUTOR_FIELD);
+
+            GmpConfigObject yamlCfg = null;
+            String yamlToInclude = null;
+
+            if (!StringUtils.isEmpty(executorConfig.get(INCLUDE_CONFIG_FIELD))) {
+                configStack.addFirst(new ConfigLayer(layer.getRoot(), executorConfig.get(INCLUDE_CONFIG_FIELD).toString()));
+            }
+
+            if (!StringUtils.isEmpty(executorConfig.get(INCLUDE_YAML_FIELD))) {
+                yamlToInclude = executorConfig.get(INCLUDE_YAML_FIELD).toString();
+            }
+
+            if (!StringUtils.isEmpty(yamlToInclude)) {
+                Map<String, Object> yamlObject = yamlLoader.getObject(scriptConfig, layer.getRoot(), yamlToInclude);
+                yamlCfg = new GmpConfigObject();
+                yamlCfg.mapMerge(yamlObject);
+                yamlCfg.mapMerge(scriptConfig);
+                scriptConfig = yamlCfg;
+            }
+        } else {
+            scriptConfig = new ConfigObject();
+            updateWithDefaultExecutor(scriptConfig, layer);
+        }
+        return scriptConfig;
+    }
+
+
+    protected ConfigObject assembleConfigForLayer(Deque<ConfigLayer> configStack, ConfigLayer layer, String environment, Map<String, Object> additionalBindings) throws ScriptInitializationException {
+        Matcher fileNameMatcher = SCRIPT_FILE_PATTERN.matcher(layer.getScriptName());
+        ConfigObject cfgObj = null;
 
         if (fileNameMatcher.matches()) {
-
-            if (configs == null) {
-                configs = new LinkedHashSet<>();
-            }
-
-            if (!scriptName.endsWith(CONFIG_SUFFIX)) {
-                configFileName = fileNameMatcher.group(2) + CONFIG_SUFFIX;
-                scriptToRun = scriptName;
+            if (COMMON_CONFIG.equals(layer.getScriptName()) || GLOBAL_CONFIG.equals(layer.getScriptName())) {
+                layer.setScriptConfig(layer.getScriptName());
+                layer.setScriptToRun(null);
             } else {
-                scriptToRun = fileNameMatcher.group(2) + SCRIPT_SUFFIX;
-            }
+                if (fileNameMatcher.group(3) == null) {
+                    layer.setScriptConfig(fileNameMatcher.group(2) + CONFIG_SUFFIX);
+                    layer.setScriptToRun(layer.getScriptName());
 
-            // Skip parsing if current config already parsed
-            if (configs.contains(configFileName)) return null;
+                } else {
+                    layer.setScriptConfig(layer.getScriptName());
+                    layer.setScriptToRun(fileNameMatcher.group(2) + SCRIPT_SUFFIX);
+                }
+            }
+            layer.setScript(groovyScriptEngineService.createScript(layer.getRoot(), layer.getScriptConfig(), new Binding(bindingBeans)));
+
             Map<String, Object> bindingMap = new LinkedHashMap<>();
             bindingMap.putAll(bindingBeans);
 
             if (additionalBindings != null) {
                 bindingMap.putAll(additionalBindings);
             }
-            Binding bindings = new Binding(bindingMap);
-
-            Script configScript = groovyScriptEngineService.createScript(scriptGroupFolder, configFileName, bindings);
-
-            if (configScript != null) {
-                scriptConfig = fillParamMapFromGroovy(configScript, environment, bindingMap);
-                if (logger.isInfoEnabled()) logger.info("Load: {}", configFileName);
-                configs.add(configFileName);
-
-                @SuppressWarnings("unchecked")
-                Map<String, Object> executorConfig = (Map<String, Object>) scriptConfig.computeIfAbsent(EXECUTOR_FIELD, (key -> new HashMap<String, Object>()));
-                executorConfig.putIfAbsent(SCRIPT_TO_RUN, scriptToRun);
-                executorConfig.put(SCRIPT_CONFIG, scriptName);
-                GmpConfigObject yamlCfg = null;
-                String yamlToInclude = null;
-
-                ConfigObject parentConfigObject = null;
-                if (!StringUtils.isEmpty(executorConfig.get(INCLUDE_CONFIG_FIELD))) {
-                    org.springframework.core.io.Resource parentConfig = GmpResourceUtils.getRelativeResource(scriptGroupFolder, executorConfig.get(INCLUDE_CONFIG_FIELD).toString());
-                    if (parentConfig.exists()) {
-                        parentConfigObject = buildConfig(scriptGroupFolder, (String) executorConfig.get(INCLUDE_CONFIG_FIELD), environment, configs, scriptConfig);
-                    } else {
-                        if (logger.isInfoEnabled()) {
-                            logger.info("File {} doesn't exist.", executorConfig);
-                        }
-                    }
-                }
-
-                if (!StringUtils.isEmpty(executorConfig.get(INCLUDE_YAML_FIELD))) {
-                    yamlToInclude = executorConfig.get(INCLUDE_YAML_FIELD).toString();
-                }
-
-                if (parentConfigObject != null) {
-                    parentConfigObject.merge(scriptConfig);
-                    scriptConfig = parentConfigObject;
-                    if (logger.isInfoEnabled()) {
-                        logger.info("Merge: {}", configFileName);
-                    }
-                }
-
-                if (!StringUtils.isEmpty(yamlToInclude)) {
-                    Map<String, Object> yamlObject = yamlLoader.getObject(scriptConfig, scriptGroupFolder, yamlToInclude);
-                    yamlCfg = new GmpConfigObject();
-                    yamlCfg.mapMerge(yamlObject);
-                    yamlCfg.mapMerge(scriptConfig);
-                    scriptConfig = yamlCfg;
-                }
-            } else {
-                scriptConfig = new ConfigObject();
-                Map<String, Object> executorConfig = (Map<String, Object>) scriptConfig.computeIfAbsent(EXECUTOR_FIELD, (key -> new HashMap<String, Object>()));
-                executorConfig.putIfAbsent(SCRIPT_TO_RUN, scriptToRun);
-                executorConfig.put(SCRIPT_CONFIG, scriptName);
-            }
+            cfgObj = preProcessConfig(configStack, layer, environment, bindingMap);
         }
-        return scriptConfig;
+        return cfgObj;
+    }
+
+
+    protected ConfigObject buildConfig(Deque<ConfigLayer> configStack, String environment, Map additionalBindings) throws ScriptInitializationException {
+        Set<String> processedConfigs = new HashSet<>();
+        Deque<ConfigObject> cfgObjStack = new LinkedList<>();
+        ConfigObject resultConfig = new ConfigObject();
+
+        while (!configStack.isEmpty()) {
+            ConfigLayer cfgLayer = configStack.removeFirst();
+            // Skip parsing if current config already parsed
+            String curConfigPath = cfgLayer.getRoot().toString() + cfgLayer.getScriptName();
+            if (processedConfigs.contains(curConfigPath)) continue;
+            processedConfigs.add(curConfigPath);
+
+            ConfigObject cfgObj = assembleConfigForLayer(configStack, cfgLayer, environment, additionalBindings);
+            if (cfgObj != null) cfgObjStack.addFirst(cfgObj);
+        }
+
+        do {
+            ConfigObject cfgItem = cfgObjStack.removeFirst();
+            resultConfig.merge(cfgItem);
+        } while (!cfgObjStack.isEmpty());
+        return resultConfig;
     }
 
     private ConfigObject fillParamMapFromGroovy(Script cfgScript, String environment, Map bindings) {
@@ -257,30 +248,6 @@ public class ScriptContextBuilder {
         return copy;
     }
 
-    private void fillParamMapFromProperties(File file, Map<String, Object> params) {
-        Properties scriptProperties;
-        if (!file.exists()) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("File doesn't exist " + file.getAbsolutePath());
-            }
-            return;
-        }
-        try {
-            scriptProperties = new Properties();
-            scriptProperties.load(Files.newInputStream(Paths.get(file.toURI())));
-            Enumeration e = scriptProperties.propertyNames();
-            while (e.hasMoreElements()) {
-                String key = (String) e.nextElement();
-                String value = scriptProperties.getProperty(key);
-                params.put(key, value);
-            }
-        } catch (IOException e) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("Unable to load " + file.getAbsolutePath());
-            }
-        }
-    }
-
     private String configToString(ConfigObject cfg) {
         if (logger.isDebugEnabled()) {
             return cfg.toString();
@@ -308,7 +275,6 @@ public class ScriptContextBuilder {
                     continue;
                 } else {
                     if (configEntry instanceof Map && !((Map) configEntry).isEmpty() && value instanceof Map) {
-                        // recur
                         doMerge((Map) configEntry, (Map) value);
                     } else {
                         config.put(key, value);
