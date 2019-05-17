@@ -39,7 +39,7 @@ public class QueuedProcessServiceTest {
     @Test
     public void executor_01_Test() throws ExecutionException, InterruptedException {
         Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "@test_03-executor/exec-01.groovy", Collections.EMPTY_LIST);
-        Assert.assertEquals(Integer.valueOf(2), future.get().getResult());
+        Assert.assertEquals(Integer.valueOf(3), future.get().getResult());
     }
 
     @Test

@@ -69,7 +69,7 @@ public class QueuedProcessService implements IQueuedProcessService {
     }
 
     @Override
-    public <C extends IQueuedThread, R> Future<ScriptResult<R>> execute(Class<C> bean, Object... args) {
+    public <R, C extends IQueuedThread<R>> Future<ScriptResult<R>> execute(Class<C> bean, Object... args) {
         return execute(GMPContext.getApplicationContext().getBean(bean, args));
     }
 

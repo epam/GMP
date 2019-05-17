@@ -22,7 +22,6 @@ import com.epam.gmp.process.QueuedProcessService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.concurrent.Future;
 
 @ExportBinding
@@ -31,7 +30,7 @@ public class ScriptRunner {
     @Autowired
     QueuedProcessService processService;
 
-    public <R> Future<ScriptResult<R>> run(String name, List<String> params) {
+    public <R> Future<ScriptResult<R>> run(String name, Object params) {
         return processService.execute(GroovyThread.class, name, params);
     }
 }

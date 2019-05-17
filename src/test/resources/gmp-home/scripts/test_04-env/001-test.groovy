@@ -13,6 +13,11 @@
  *  ***************************************************************************
  */
 
+
+import com.epam.dep.esp.common.json.JsonMapper
 import com.epam.gmp.ScriptResult
 
+gConfig.testData_001 = null
+def json = JsonMapper.getInstance().map(true, gConfig)
+logger.info json
 return new ScriptResult<String>(gConfig.file_path)

@@ -32,7 +32,7 @@ import java.util.Map;
 @SuppressWarnings("unchecked")
 @Component("GroovyThread")
 @Scope(value = "prototype")
-public class GroovyThread implements IQueuedThread<Object> {
+public class GroovyThread<T> implements IQueuedThread<T> {
 
     @Autowired
     private ScriptContextBuilder scriptContextBuilder;
@@ -67,7 +67,7 @@ public class GroovyThread implements IQueuedThread<Object> {
         this.resultKey = scriptContext.getScriptId();
     }
 
-    public ScriptResult call() {
+    public ScriptResult<T> call() {
         return groovyScriptEngineService.runScript(scriptContext);
     }
 

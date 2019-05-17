@@ -22,7 +22,7 @@ import java.util.concurrent.Future;
 public interface IQueuedProcessService {
     <R> Future<ScriptResult<R>> execute(IQueuedThread<R> process);
 
-    <C extends IQueuedThread, R> Future<ScriptResult<R>> execute(Class<C> bean, Object... args);
+    <R, C extends IQueuedThread<R>> Future<ScriptResult<R>> execute(Class<C> bean, Object... args);
 
     int getQueueSize();
 

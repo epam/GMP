@@ -22,7 +22,7 @@ import groovy.lang.Binding;
 import groovy.lang.Script;
 import org.springframework.core.io.Resource;
 
-public interface IGroovyScriptEngineService<T> {
+public interface IGroovyScriptEngineService {
     Script createScript(ScriptContext scriptContext) throws ScriptInitializationException;
 
     Script createScript(Resource rootFolder, String scriptName, Binding binding) throws ScriptInitializationException;
