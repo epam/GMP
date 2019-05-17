@@ -34,7 +34,6 @@ import javax.annotation.Resource;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service("GroovyScriptEngineService")
 @Scope(value = "singleton")
 //Should support multithreading
-public class GroovyScriptEngineService implements IGroovyScriptEngineService<Object> {
+public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     public static final String SCRIPTS_FOLDER = "scripts";
     public static final String GROOVY_ROOT_FOLDER = "groovyRoot";
     public static final String LIB_FOLDER = "lib";
@@ -150,7 +149,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService<Obj
         return scriptClassLoader;
     }
 
-    protected void putResult(Object result, ScriptContext scriptContext) {
+    protected <T> void putResult(T result, ScriptContext scriptContext) {
         if (resultMap != null) {
             if (scriptContext.getScriptId() != null) {
                 if (result != null) {
@@ -179,21 +178,20 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService<Obj
                 if (logger.isInfoEnabled()) {
                     logger.info("Start script: <{}>", scriptContext.getScriptId());
                 }
-                Object result = script.run();
+                Object scriptResult = script.run();
+                ScriptResult<R> result;
 
                 if (logger.isInfoEnabled()) {
-                    logger.info("Script finished: <{}>={}", scriptContext.getScriptId(), result == null ? NULL_RESULT : result.toString());
+                    logger.info("Script finished: <{}>={}", scriptContext.getScriptId(), scriptResult == null ? NULL_RESULT : scriptResult.toString());
                 }
+                if (scriptResult instanceof ScriptResult) {
+                    result = (ScriptResult) scriptResult;
 
-                if (result instanceof Map) {
-                    putResult(Collections.unmodifiableMap((Map) result), scriptContext);
                 } else {
-                    putResult(result, scriptContext);
+                    result = new ScriptResult(scriptResult);
                 }
-
-                if (result instanceof ScriptResult) {
-                    return (ScriptResult<R>) result;
-                }
+                putResult(result, scriptContext);
+                return result;
             }
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
