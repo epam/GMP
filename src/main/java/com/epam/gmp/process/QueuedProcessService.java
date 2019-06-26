@@ -24,10 +24,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service("QueuedProcessService")
 @Scope(value = "singleton")
@@ -49,7 +46,7 @@ public class QueuedProcessService implements IQueuedProcessService {
     @PostConstruct
     public void initialize() {
         queue = new ArrayBlockingQueue<>(startPullers);
-        threadPool = new QueuedProcessThreadPoolExecutor(corePullers, startPullers, 30L, TimeUnit.SECONDS, queue, new QueuedProcessThreadPoolExecutor.GroovyThreadFactory(), new ThreadPoolExecutor.CallerRunsPolicy());
+        threadPool = new QueuedProcessThreadPoolExecutor(corePullers, startPullers, 30L, TimeUnit.SECONDS, queue);
 
         if (logger.isInfoEnabled()) {
             logger.info("Prepared Groovy thread pool of {} pullers; concurrent: {}", startPullers, corePullers);
@@ -64,6 +61,8 @@ public class QueuedProcessService implements IQueuedProcessService {
                 logger.info("Exec triggered. Threads running (approximate)=({}), queue size=({}) ", threadPool.getActiveCount(), getQueueSize());
             }
             return result;
+        } else {
+            logger.info("Process {} has not been started", process.getKey());
         }
         return null;
     }

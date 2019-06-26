@@ -26,22 +26,10 @@ public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
 
-    final AtomicInteger incompleteScripts = new AtomicInteger(0);
+    protected final AtomicInteger incompleteScripts = new AtomicInteger(0);
 
     public QueuedProcessThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue) {
-        super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
-    }
-
-    public QueuedProcessThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory) {
-        super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory);
-    }
-
-    public QueuedProcessThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, RejectedExecutionHandler handler) {
-        super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, handler);
-    }
-
-    public QueuedProcessThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory, RejectedExecutionHandler handler) {
-        super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler);
+        super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, new QueuedProcessThreadPoolExecutor.GroovyThreadFactory(), new QueuedProcessThreadPoolExecutor.QPSRejectedExecutionHandler());
     }
 
     public static class GroovyThreadFactory implements ThreadFactory {
@@ -68,31 +56,25 @@ public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
     }
 
     @Override
-    public Future<?> submit(Runnable task) {
-        incompleteScripts.incrementAndGet();
-        return super.submit(task);
-    }
-
-    @Override
-    public <T> Future<T> submit(Runnable task, T result) {
-        incompleteScripts.incrementAndGet();
-        return super.submit(task, result);
-    }
-
-    @Override
-    public <T> Future<T> submit(Callable<T> task) {
-        incompleteScripts.incrementAndGet();
-        return super.submit(task);
+    public void execute(Runnable command) {
+        incompleteScripts.incrementAndGet(); //Should be before execute.
+        super.execute(command);
     }
 
     @Override
     protected void afterExecute(Runnable r, Throwable t) {
-        int i = incompleteScripts.decrementAndGet();
+        super.afterExecute(r, t);
+        decScriptCounter();
+    }
+
+    protected void decScriptCounter() {
+        incompleteScripts.decrementAndGet();
         synchronized (incompleteScripts) {
             incompleteScripts.notifyAll();
         }
     }
 
+    @SuppressWarnings("squid:S2142")
     public void shutdown(int timeout) {
         if (logger.isInfoEnabled()) {
             logger.info("ThreadPool shutdown requested");
@@ -108,13 +90,22 @@ public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
             }
             logger.info("No active Scripts. Shutting down...", incompleteScripts.get());
         } catch (InterruptedException e) {
-            logger.error("ThreadPool wait threads to stop timeout", e);
+            logger.error("Shutdown wait timeout. Force shutdown.", e);
         }
         shutdown();
     }
 
-    @Override
-    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return super.awaitTermination(timeout, unit);
+    protected static class QPSRejectedExecutionHandler implements RejectedExecutionHandler {
+        private final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
+
+        @Override
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+            QueuedProcessThreadPoolExecutor qpExecutor = ((QueuedProcessThreadPoolExecutor) executor);
+            qpExecutor.decScriptCounter();
+            logger.info("RejectedExecution for № {}. Run in the same thread.", qpExecutor.incompleteScripts);
+            if (!executor.isShutdown()) {
+                r.run();
+            }
+        }
     }
 }
