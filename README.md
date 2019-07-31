@@ -26,8 +26,4 @@ is a tool to run groovy scripts organized in folder structure with configuration
 
 #### Execution
 
-java -jar {jarname} -Dgmp.home=file:///d:/gmp-home -Dgmp.log.home=d:/gmp-home {environment}@{script-path}/{script-name} {script params}
-
-
-
- 
+java -jar {jarname} -Dgmp.home=file:///d:/gmp-home/ -Dgmp.log.home=d:/gmp-home {environment}@{script-path}/{script-name} {script params}
