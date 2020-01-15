@@ -50,9 +50,6 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     private static final Logger logger = LoggerFactory.getLogger(GroovyScriptEngineService.class);
     private Map<String, GroovyScriptEngine> gseCache;
 
-    @Resource(name = "gmpHome")
-    private String gmpHome;
-
     @Resource(name = "gmpHomeResource")
     private org.springframework.core.io.Resource gmpHomeResource;
 
@@ -154,7 +151,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
             if (scriptContext.getScriptId() != null) {
                 if (result != null) {
                     if (logger.isInfoEnabled()) {
-                        logger.info("Internal cache put into: " + scriptContext.getScriptId());
+                        logger.info("Internal cache put into: {}", scriptContext.getScriptId());
                     }
                     resultMap.put(scriptContext.getScriptId(), result);
                 } else {
@@ -195,7 +192,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
             }
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
-                logger.error("Unable to run: " + scriptContext.getScriptName() + " message: " + e.getMessage());
+                logger.error("Unable to run: {}  message: {}", scriptContext.getScriptName(), e.getMessage());
                 putResult(1, scriptContext);
             }
         }

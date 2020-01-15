@@ -88,7 +88,7 @@ public class ChainExecutor {
         context.refresh();
         if (logger.isInfoEnabled()) {
             for (String name : context.getBeanDefinitionNames()) {
-                logger.info("<bean name='" + name + "'/>" + " - READY.");
+                logger.info("<bean name='{}'/>" + " - READY.", name);
             }
         }
     }

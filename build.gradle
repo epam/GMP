@@ -84,7 +84,7 @@ dependencies {
     compile "com.epam.dep.esp:gmp-common:$gmpCommonVersion"
     compile "commons-cli:commons-cli:$commonsCliVersion"
     compile "com.google.guava:guava:$guavaVersion"
-    compile "org.yaml:snakeyaml:1.17"
+    compile "org.yaml:snakeyaml:$snakeyamlVersion"
 //TEST
     testCompile group: 'junit', name: 'junit', version: junitVersion
     testCompile "org.springframework:spring-test:${springVersion}"
