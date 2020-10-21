@@ -1,6 +1,6 @@
 /*
  *  /***************************************************************************
- * Copyright (c) 2017, EPAM SYSTEMS INC
+ *  Copyright (c) 2017, EPAM SYSTEMS INC
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
@@ -13,5 +13,25 @@
  *  ***************************************************************************
  */
 
-testData_001 = 'test_001'
-testData_002 = 'test_002'
+package com.epam.dep.esp.common.web;
+
+import java.net.ConnectException;
+
+public class WebToolsException extends ConnectException {
+    public WebToolsException() {
+    }
+
+    public WebToolsException(String message) {
+        super(message);
+    }
+
+    public WebToolsException(String message, Throwable cause) {
+        super(message);
+        initCause(cause);
+    }
+
+    public WebToolsException(Throwable cause) {
+        initCause(cause);
+    }
+
+}

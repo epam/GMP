@@ -141,7 +141,7 @@ public class ScriptContextBuilderTest {
     }
 
     @Test
-    public void  buildContextForTest_04_001() throws ScriptInitializationException {
+    public void buildContextForTest_04_001() throws ScriptInitializationException {
         ScriptContext scriptContext = testObj.buildContextFor("@test_04-env/001-test.groovy", null);
         assertEquals("var1", ((Map) scriptContext.getParams().get("gConfig")).get("var1"));
         assertEquals("var2=var1+1", ((Map) scriptContext.getParams().get("gConfig")).get("var2"));

@@ -53,7 +53,7 @@ public class GroovyThread<T> implements IQueuedThread<T> {
 
     public GroovyThread(String scriptPath, List<String> params) {
         this.scriptPath = scriptPath;
-        this.params.put("cmdLine",params);
+        this.params.put("cmdLine", params);
     }
 
     public GroovyThread(String scriptPath, Map<String, Object> params) {
