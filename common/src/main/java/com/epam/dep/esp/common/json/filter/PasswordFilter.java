@@ -13,38 +13,24 @@
  *  ***************************************************************************
  */
 
-package com.epam.gmp;
+package com.epam.dep.esp.common.json.filter;
 
-import org.springframework.core.io.Resource;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.ser.PropertyWriter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 
-import java.util.Map;
+/**
+ * Do not serializes 'password' fields"
+ */
 
-public class ScriptContext {
-    private Map<String, Object> params;
-    private Resource root;
-    private String scriptName;
-    private String scriptId;
+public class PasswordFilter extends SimpleBeanPropertyFilter {
+    public static final String PASSWORD = "password";
 
-    public ScriptContext(String scriptId, Map<String, Object> params, Resource root, String scriptName) {
-        this.scriptId = scriptId;
-        this.params = params;
-        this.root = root;
-        this.scriptName = scriptName;
-    }
-
-    public String getScriptId() {
-        return scriptId;
-    }
-
-    public Resource getRoot() {
-        return root;
-    }
-
-    public String getScriptName() {
-        return scriptName;
-    }
-
-    public Map<String, Object> getParams() {
-        return params;
+    @Override
+    public void serializeAsField(Object pojo, JsonGenerator jgen, SerializerProvider provider, PropertyWriter writer) throws Exception {
+        if (!writer.getName().toLowerCase().contains(PASSWORD)) {
+            writer.serializeAsField(pojo, jgen, provider);
+        }
     }
 }

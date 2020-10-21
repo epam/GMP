@@ -1,6 +1,6 @@
 /*
  *  /***************************************************************************
- * Copyright (c) 2017, EPAM SYSTEMS INC
+ *  Copyright (c) 2017, EPAM SYSTEMS INC
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
@@ -13,5 +13,26 @@
  *  ***************************************************************************
  */
 
-testData_001 = 'test_001'
-testData_002 = 'test_002'
+package com.epam.dep.esp.common;
+
+public abstract class AbstractObjectMapper<D, T> implements ObjectMapper<D, T> {
+
+    /**
+     * @param pretty - pretty format if true
+     * @param obj    - object to map
+     * @return mapped object
+     */
+    public D map(boolean pretty, T obj) {
+        return map(pretty, false, obj);
+    }
+
+    /**
+     * @param obj - object to map
+     * @return mapped object
+     */
+    public D map(T obj) {
+        return map(false, false, obj);
+    }
+
+
+}

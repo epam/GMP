@@ -12,11 +12,41 @@
  *  limitations under the License.
  *  ***************************************************************************
  */
-group 'com.epam.dep.esp'
-version version
+allprojects {
+    group group
+    version version
 
-apply plugin: 'java'
-apply plugin: 'groovy'
+    apply plugin: 'groovy'
+    apply plugin: 'java'
+    repositories {
+        mavenLocal()
+        mavenCentral()
+
+        flatDir {
+            dirs 'lib'
+        }
+
+        maven {
+            url 'http://maven.jahia.org/maven2'
+        }
+
+        maven {
+            url 'https://artifacts.elastic.co/maven'
+        }
+
+        maven {
+            url "https://m2proxy.atlassian.com/repository/public"
+        }
+
+        maven {
+            url 'https://maven.atlassian.com/content/repositories/atlassian-public'
+        }
+
+        maven {
+            url "https://oss.sonatype.org/content/groups/staging"
+        }
+    }
+}
 apply plugin: 'maven'
 apply plugin: 'signing'
 
@@ -77,11 +107,11 @@ uploadArchives {
 }
 
 dependencies {
+    compile project(':common')
     compile "org.codehaus.groovy:groovy:$groovyVersion"
     compile "org.springframework:spring-context-support:$springVersion"
     compile "org.springframework:spring-aspects:${springVersion}"
     compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
-    compile "com.epam.dep.esp:gmp-common:$gmpCommonVersion"
     compile "commons-cli:commons-cli:$commonsCliVersion"
     compile "com.google.guava:guava:$guavaVersion"
     compile "org.yaml:snakeyaml:$snakeyamlVersion"
