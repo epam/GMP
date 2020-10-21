@@ -12,6 +12,11 @@
  *  limitations under the License.
  *  ***************************************************************************
  */
+
+plugins {
+    id 'jacoco'
+}
+
 allprojects {
     group group
     version version
@@ -169,5 +174,13 @@ if (project.hasProperty('signing.keyId')) {
 test {
     testLogging {
         showStandardStreams = true
+    }
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        csv.enabled false
     }
 }
