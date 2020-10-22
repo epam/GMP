@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 
 public class OSTest {
-    OS testObj;
+    private OS testObj;
 
     @Test
     public void testOs() {
