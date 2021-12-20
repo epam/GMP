@@ -119,7 +119,7 @@ nexusStaging {
 }
 
 dependencies {
-    compile project(':common')
+    implementation project(':common')
     compile "org.codehaus.groovy:groovy:$groovyVersion"
     compile "org.springframework:spring-context-support:$springVersion"
     compile "org.springframework:spring-aspects:${springVersion}"
@@ -151,6 +151,9 @@ task copyDepandancies(type: Copy) {
 }
 
 jar {
+    from {
+        subprojects.collect { it.sourceSets.main.output }
+    }
     manifest {
         attributes 'Implementation-Title': 'Groovy ManiPulator',
                 'Implementation-Version': version,
