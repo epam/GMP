@@ -15,6 +15,9 @@
 
 plugins {
     id 'jacoco'
+    id 'maven'
+    id 'signing'
+    id 'io.codearte.nexus-staging' version '0.21.2'
 }
 
 allprojects {
@@ -52,8 +55,6 @@ allprojects {
         }
     }
 }
-apply plugin: 'maven'
-apply plugin: 'signing'
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
@@ -109,6 +110,10 @@ uploadArchives {
             }
         }
     }
+}
+
+nexusStaging {
+    packageGroup = "com.epam.dep"
 }
 
 dependencies {
