@@ -1,5 +1,7 @@
 name: Run Gradle on PRs
 on: [pull_request,push]
+env:
+  gradleVersion: 5.2.1
 jobs:
   gradle:
     runs-on: ubuntu-latest
