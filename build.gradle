@@ -18,38 +18,8 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'io.codearte.nexus-staging' version '0.30.0'
-}
-
-allprojects {
-    group group
-    version version
-
-    apply plugin: 'groovy'
-    apply plugin: 'java-library'
-    repositories {
-        mavenLocal()
-        mavenCentral()
-
-        maven {
-            url 'https://maven.jahia.org/maven2'
-        }
-
-        maven {
-            url 'https://artifacts.elastic.co/maven'
-        }
-
-        maven {
-            url "https://m2proxy.atlassian.com/repository/public"
-        }
-
-        maven {
-            url 'https://maven.atlassian.com/content/repositories/atlassian-public'
-        }
-
-        maven {
-            url "https://oss.sonatype.org/content/groups/staging"
-        }
-    }
+    id 'groovy'
+    id 'java-library'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
@@ -62,6 +32,11 @@ repositories {
     maven {
         url "https://oss.sonatype.org/content/groups/public"
     }
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
 }
 
 publishing {
@@ -82,7 +57,7 @@ publishing {
             pom {
                 packaging 'jar'
                 name = rootProject.name
-                description 'Groovy ManiPulator'
+                description = 'Groovy ManiPulator'
                 url = 'https://github.com/epam/GMP'
                 from components.java
                 scm {
@@ -136,11 +111,6 @@ dependencies {
     testImplementation "org.slf4j:slf4j-simple:${slf4jVersion}"
 }
 
-task copyConfig(type: Copy) {
-    into "$buildDir/install"
-    from "src/main/resources/gmp.properties"
-}
-
 jar {
     from {
         subprojects.collect { it.sourceSets.main.output }
@@ -151,20 +121,6 @@ jar {
                 'Implementation-Vendor': 'EPAM SYSTEMS INC',
                 'Main-Class': 'com.epam.gmp.ChainExecutor'
     }
-}
-
-task javadocJar(type: Jar) {
-    archiveClassifier = 'javadoc'
-    from javadoc
-}
-
-task sourcesJar(type: Jar) {
-    archiveClassifier = 'sources'
-    from sourceSets.main.allSource
-}
-
-artifacts {
-    archives javadocJar, sourcesJar
 }
 
 if (project.hasProperty('signing.keyId')) {
