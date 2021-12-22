@@ -92,19 +92,16 @@ nexusStaging {
 }
 
 dependencies {
+    api "$group:gmp-common:$gmpCommonVersion"
     api "org.codehaus.groovy:groovy:$groovyVersion"
     api "org.springframework:spring-context-support:$springVersion"
     api "org.springframework:spring-aspects:${springVersion}"
-    api "org.slf4j:slf4j-api:${slf4jVersion}"
     api "commons-cli:commons-cli:$commonsCliVersion"
     api "com.google.guava:guava:$guavaVersion"
     api "org.yaml:snakeyaml:$snakeyamlVersion"
     api "org.apache.logging.log4j:log4j-slf4j-impl:$slftolog4jVersion"
     api "org.apache.logging.log4j:log4j-api:$log4j2Version"
     api "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
-    api "org.slf4j:slf4j-api:${slf4jVersion}"
-    api "org.freemarker:freemarker:${freemarkerVersion}"
-    api "org.apache.httpcomponents:httpclient:${httpcomponentsVersion}"
 //TEST
     testImplementation "org.springframework:spring-test:${springVersion}"
     testImplementation "junit:junit:${junitVersion}"
