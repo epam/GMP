@@ -74,4 +74,9 @@ public class GroovyThread<T> implements IQueuedThread<T> {
     public String getKey() {
         return resultKey;
     }
+
+    @Override
+    public String toString() {
+        return scriptPath;
+    }
 }

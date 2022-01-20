@@ -103,9 +103,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
         try {
             return gse.createScript(scriptName, binding);
         } catch (ResourceException e) {
-            if (logger.isWarnEnabled()) {
-                logger.warn(String.format("File not found for script: %s/%s ", rootFolder, scriptName));
-            }
+            logger.trace("File not found for script: {}/{}", rootFolder, scriptName);
             return null;
         } catch (ScriptException e) {
             throw new ScriptInitializationException("Unable to initialize groovy script: " + scriptName, e);
@@ -116,19 +114,19 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     protected ClassLoader buildClassloader(org.springframework.core.io.Resource scriptPath) {
         ClassLoader scriptClassLoader = null;
 
-        org.springframework.core.io.Resource libPath = null;
+        org.springframework.core.io.Resource libPath;
         try {
             libPath = scriptPath.createRelative(LIB_FOLDER);
             if (libPath.exists()) {
                 ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-                org.springframework.core.io.Resource[] jarResources = resolver.getResources(libPath.getURL().toString() + "/*.jar");
+                org.springframework.core.io.Resource[] jarResources = resolver.getResources(libPath.getURL() + "/*.jar");
                 List<URL> urls = new ArrayList<>();
                 for (org.springframework.core.io.Resource resource : jarResources) {
                     try {
                         urls.add(resource.getURL());
                     } catch (IOException ex) {
                         if (logger.isWarnEnabled()) {
-                            logger.warn("Unable to resolve url for " + resource.toString(), ex);
+                            logger.warn("Unable to resolve url for " + resource, ex);
                         }
                     }
                 }
@@ -178,11 +176,10 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
                 Object scriptResult = script.run();
                 ScriptResult<R> result;
 
-                if (logger.isInfoEnabled()) {
-                    logger.info("Script finished: <{}>={}", scriptContext.getScriptId(), scriptResult == null ? NULL_RESULT : scriptResult.toString());
-                }
+                logger.info("Script finished: <{}>={}", scriptContext.getScriptId(), scriptResult == null ? NULL_RESULT : scriptResult.toString());
+
                 if (scriptResult instanceof ScriptResult) {
-                    result = (ScriptResult) scriptResult;
+                    result = (ScriptResult<R>) scriptResult;
 
                 } else {
                     result = new ScriptResult(scriptResult);

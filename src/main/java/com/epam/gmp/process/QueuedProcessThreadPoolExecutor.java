@@ -15,9 +15,11 @@
 
 package com.epam.gmp.process;
 
+import groovyjarjarantlr4.v4.runtime.misc.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -56,15 +58,39 @@ public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
     }
 
     @Override
+    /**
+     * Override this to be able to calculate our own hash.
+     */
+    protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
+        return new GroovyFutureTask<>(callable);
+    }
+
+    @Override
+    /**
+     * Override this to be able to calculate our own hash.
+     */
+    protected <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
+        return new GroovyFutureTask<>(runnable, value);
+    }
+
+    @Override
     public void execute(Runnable command) {
-        incompleteScripts.incrementAndGet(); //Should be before execute.
+        int active = incompleteScripts.incrementAndGet(); //Should be before execute.
         super.execute(command);
+        synchronized (incompleteScripts) {
+            incompleteScripts.notifyAll();
+        }
+        logger.debug("EXEC.Request ({}): Active runners: {}; threadPoolActive: {} ", command, active, getActiveCount());
     }
 
     @Override
     protected void afterExecute(Runnable r, Throwable t) {
         super.afterExecute(r, t);
+        if (t != null) {
+            logger.error("Unhandled error occurred during task execution with message {}", t.getMessage());
+        }
         decScriptCounter();
+        logger.debug("COMPLETED ({}): Active runners: {}; threadPoolActive: {} ", r.toString(), incompleteScripts.get(), getActiveCount());
     }
 
     protected void decScriptCounter() {
@@ -75,24 +101,36 @@ public class QueuedProcessThreadPoolExecutor extends ThreadPoolExecutor {
     }
 
     @SuppressWarnings("squid:S2142")
-    public void shutdown(int timeout) {
-        if (logger.isInfoEnabled()) {
-            logger.info("ThreadPool shutdown requested");
-        }
-        try {
-            while (incompleteScripts.get() != 0) {
-                if (logger.isInfoEnabled()) {
-                    logger.info("Scripts still running=({}) Await for termination...", incompleteScripts.get());
-                }
-                synchronized (incompleteScripts) {
-                    incompleteScripts.wait(TimeUnit.MILLISECONDS.convert(timeout, TimeUnit.MINUTES));
+    public boolean shutdown(int timeout) {
+        long stopRequested = System.currentTimeMillis();
+        long stopDeadline = stopRequested + TimeUnit.MILLISECONDS.convert(timeout, TimeUnit.MINUTES);
+        logger.info("ThreadPool shutdown requested. Wait for running scripts to complete their job... countdown: {} milliseconds.", stopDeadline - System.currentTimeMillis());
+
+        while ((incompleteScripts.get() != 0) && ((System.currentTimeMillis() < stopDeadline))) {
+            logger.info("Await for termination, pending scripts=({}); threadPoolActive: {}; countdown: {} milliseconds.", incompleteScripts.get(), getActiveCount(), stopDeadline - System.currentTimeMillis());
+            synchronized (incompleteScripts) {
+                try {
+                    incompleteScripts.wait(TimeUnit.MILLISECONDS.convert(10, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    logger.debug("Await check.");
                 }
             }
-            logger.info("No active Scripts. Shutting down...", incompleteScripts.get());
-        } catch (InterruptedException e) {
-            logger.error("Shutdown wait timeout. Force shutdown.", e);
         }
-        shutdown();
+        if (incompleteScripts.get() > 0) {
+            logger.error("Shutdown timeout occurred.");
+            List<Runnable> frozenTasks = shutdownNow();
+            for (Runnable task : frozenTasks) {
+                logger.error("Frozen: {}", task);
+                if (task instanceof GroovyFutureTask) {
+                    ((GroovyFutureTask<?>) task).cancel(true);
+                }
+            }
+            return false;
+        } else {
+            logger.info("No active Scripts. Shutting down...");
+            shutdown();
+            return true;
+        }
     }
 
     protected static class QPSRejectedExecutionHandler implements RejectedExecutionHandler {

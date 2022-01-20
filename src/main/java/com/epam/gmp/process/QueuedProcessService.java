@@ -59,12 +59,10 @@ public class QueuedProcessService implements IQueuedProcessService {
     public <R> Future<ScriptResult<R>> execute(IQueuedThread<R> process) {
         if (threadPool != null && !threadPool.isShutdown()) {
             Future<ScriptResult<R>> result = threadPool.submit(process);
-            if (logger.isInfoEnabled()) {
-                logger.info("Exec triggered. Threads running (approximate)=({}), queue size=({}) ", threadPool.getActiveCount(), getQueueSize());
-            }
+            logger.debug("EXEC.Accepted {}", result);
             return result;
         } else {
-            logger.info("Process {} has not been started", process.getKey());
+            logger.debug("Process {} has not been started", process.getKey());
         }
         return null;
     }
@@ -83,17 +81,18 @@ public class QueuedProcessService implements IQueuedProcessService {
         if (logger.isInfoEnabled()) {
             logger.info("Global shutdown requested");
         }
-        threadPool.shutdown(timeout);
-        try {
-            long start = System.currentTimeMillis();
-            if (!threadPool.awaitTermination(timeout, TimeUnit.MINUTES)) {
-                logger.info("ThreadPool shutdown timeout");
+        if (threadPool.shutdown(timeout)) {
+            try {
+                long start = System.currentTimeMillis();
+                if (!threadPool.awaitTermination(10, TimeUnit.SECONDS)) {
+                    logger.info("ThreadPool shutdown timeout");
+                }
+                if (logger.isInfoEnabled()) {
+                    logger.info("ThreadPool has been terminated in: {} millis.", System.currentTimeMillis() - start);
+                }
+            } catch (InterruptedException e) {
+                logger.error("Unable to stop thread pool correctly.", e);
             }
-            if (logger.isInfoEnabled()) {
-                logger.info("ThreadPool has been terminated in: {} millis.", System.currentTimeMillis() - start);
-            }
-        } catch (InterruptedException e) {
-            logger.error("Unable to stop thread pool correctly.", e);
         }
     }
 

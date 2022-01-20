@@ -17,5 +17,9 @@
             <AppenderRef ref="STDOUT"/>
             <appender-ref ref="file"/>
         </root>
+        <Logger name="com.epam.gmp.process" level="debug" additivity="false">
+            <AppenderRef ref="STDOUT"/>
+            <appender-ref ref="file"/>
+        </Logger>
     </Loggers>
 </Configuration>

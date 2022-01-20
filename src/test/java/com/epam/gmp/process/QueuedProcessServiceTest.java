@@ -43,20 +43,26 @@ public class QueuedProcessServiceTest {
     }
 
     @Test
+    public void executor_01_stop_Test() {
+        Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "@test_03-executor/exec-01.groovy", Collections.EMPTY_LIST);
+        testObj.shutdown();
+    }
+
+    @Test
     public void executor_02_0_Test() throws ExecutionException, InterruptedException {
-        Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy", Collections.EMPTY_LIST);
+        Future<ScriptResult<String>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy", Collections.EMPTY_LIST);
         Assert.assertEquals("env", future.get().getResult());
     }
 
     @Test
     public void executor_02_1_Test() throws ExecutionException, InterruptedException {
-        Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy", new HashMap<>());
+        Future<ScriptResult<String>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy", new HashMap<>());
         Assert.assertEquals("env", future.get().getResult());
     }
 
     @Test
     public void executor_02_2_Test() throws ExecutionException, InterruptedException {
-        Future<ScriptResult<Integer>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy");
+        Future<ScriptResult<String>> future = testObj.execute(GroovyThread.class, "env@test_03-executor/exec-02.groovy");
         Assert.assertEquals("env", future.get().getResult());
     }
 
