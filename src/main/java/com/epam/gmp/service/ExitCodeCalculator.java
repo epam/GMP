@@ -15,6 +15,7 @@
 
 package com.epam.gmp.service;
 
+import com.epam.gmp.ScriptResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,8 +37,12 @@ public class ExitCodeCalculator {
             String key = entry.getKey();
             Object value = entry.getValue();
             if (logger.isInfoEnabled()) logger.info(" Script: {} result={}", key, value);
-            if (value != NULL_RESULT && value instanceof Integer) {
-                resultCode += (Integer) value;
+            if (value != NULL_RESULT) {
+                if (value instanceof Integer) {
+                    resultCode += (Integer) value;
+                } else if (value instanceof ScriptResult && ((ScriptResult<?>) value).getResult() instanceof Integer) {
+                    resultCode += (Integer) ((ScriptResult<?>) value).getResult();
+                }
             }
         }
         if (logger.isInfoEnabled()) {

@@ -8,11 +8,11 @@ import java.util.concurrent.FutureTask;
  * This class was designed as a wrapper for FutureTask to provide
  * custom hash code based on script name and parameters.
  *
- * @param <V>
+ * @param <V> Result Class
  */
 public class GroovyFutureTask<V> extends FutureTask<V> {
-    private int hashCode;
-    private String str;
+    private final int hashCode;
+    private final String str;
 
     public GroovyFutureTask(Callable<V> callable) {
         super(callable);
