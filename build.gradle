@@ -132,6 +132,7 @@ if (project.hasProperty('signing.keyId')) {
 }
 
 test {
+    useJUnitPlatform()
     testLogging {
         showStandardStreams = true
     }

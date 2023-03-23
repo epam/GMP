@@ -36,14 +36,19 @@ public class ExitCodeCalculator {
         for (Map.Entry<String, Object> entry : resultCache.entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
-            if (logger.isInfoEnabled()) logger.info(" Script: {} result={}", key, value);
+            boolean isLogValue = false;
             if (value != NULL_RESULT) {
                 if (value instanceof Integer) {
                     resultCode += (Integer) value;
+                    isLogValue = true;
                 } else if (value instanceof ScriptResult && ((ScriptResult<?>) value).getResult() instanceof Integer) {
                     resultCode += (Integer) ((ScriptResult<?>) value).getResult();
+                    isLogValue = true;
                 }
+            } else {
+                isLogValue = true;
             }
+            if (logger.isInfoEnabled() && isLogValue) logger.info(" Script: {} result={}", key, value);
         }
         if (logger.isInfoEnabled()) {
             logger.info("Unique scripts executed: {}", resultCache.size());

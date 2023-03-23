@@ -4,22 +4,13 @@
         <Appender type="Console" name="STDOUT">
             <Layout type="PatternLayout" pattern="%d{yyyy-MM-dd HH:mm:ss} %t %-5p %c{1}:%L - %m%n"/>
         </Appender>
-
-        <appender name="file" type="File" fileName="${gmp.home}/log/gmp.log">
-            <Layout type="PatternLayout">
-                <Pattern>%d{yyyy-MM-dd HH:mm:ss} %t %-5p %c{1}:%L - %m%n</Pattern>
-            </Layout>
-        </appender>
     </Appenders>
-
     <Loggers>
         <root level="info">
             <AppenderRef ref="STDOUT"/>
-            <appender-ref ref="file"/>
         </root>
         <Logger name="com.epam.gmp.process" level="debug" additivity="false">
             <AppenderRef ref="STDOUT"/>
-            <appender-ref ref="file"/>
         </Logger>
     </Loggers>
 </Configuration>

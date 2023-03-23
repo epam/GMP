@@ -43,4 +43,20 @@ class ExitCodeCalculatorSpecification extends Specification {
         expect:
         result == 4
     }
+
+    def "Null values Test"() {
+        resultMap.put("test", Integer.valueOf(1))
+        resultMap.put("test1", null)
+        def result = exitCodeCalculator.calculate(1)
+        expect:
+        result == 2
+    }
+
+    def "Object value test"() {
+        resultMap.put("test", Integer.valueOf(1))
+        resultMap.put("test1", [value: "value1"])
+        def result = exitCodeCalculator.calculate(1)
+        expect:
+        result == 2
+    }
 }
