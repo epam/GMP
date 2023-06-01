@@ -83,7 +83,7 @@ public class ScriptContextBuilder {
 
 
         if (!scriptGroupPath.exists()) {
-            throw new ScriptContextException("Script group folder doesn't exist: " + scriptGroupPath.toString());
+            throw new ScriptContextException("Script group folder doesn't exist: " + scriptGroupPath);
         }
 
         try {
@@ -120,7 +120,7 @@ public class ScriptContextBuilder {
             return new ScriptContext(scriptPath, paramMap, scriptGroupPath, scriptName);
 
         } catch (ScriptInitializationException e) {
-            throw new ScriptContextException("Unable to build context for: " + scriptPath);
+            throw new ScriptContextException("Unable to build context for: " + scriptPath, e);
         }
     }
 
@@ -133,14 +133,14 @@ public class ScriptContextBuilder {
 
     protected ConfigObject preProcessConfig(Deque<ConfigLayer> configStack, ConfigLayer layer, String environment, Map<String, Object> bindingMap) {
 
-        ConfigObject scriptConfig = null;
+        ConfigObject scriptConfig;
 
         if (layer.getScript() != null) {
             scriptConfig = fillParamMapFromGroovy(layer.getScript(), environment, bindingMap);
             updateWithDefaultExecutor(scriptConfig, layer);
             Map<String, Object> executorConfig = (Map<String, Object>) scriptConfig.get(EXECUTOR_FIELD);
 
-            GmpConfigObject yamlCfg = null;
+            GmpConfigObject yamlCfg;
             String yamlToInclude = null;
 
             if (!StringUtils.isEmpty(executorConfig.get(INCLUDE_CONFIG_FIELD))) {
@@ -186,8 +186,7 @@ public class ScriptContextBuilder {
             }
             layer.setScript(groovyScriptEngineService.createScript(layer.getRoot(), layer.getScriptConfig(), new Binding(bindingBeans)));
 
-            Map<String, Object> bindingMap = new LinkedHashMap<>();
-            bindingMap.putAll(bindingBeans);
+            Map<String, Object> bindingMap = new LinkedHashMap<>(bindingBeans);
 
             if (additionalBindings != null) {
                 bindingMap.putAll(additionalBindings);
@@ -224,7 +223,7 @@ public class ScriptContextBuilder {
     private ConfigObject fillParamMapFromGroovy(Script cfgScript, String environment, Map bindings) {
         if (cfgScript == null) return null;
 
-        Map<String, ConfigObject> scriptConfigs = configCache.computeIfAbsent(cfgScript.getClass(), key -> new ConcurrentHashMap<String, ConfigObject>());
+        Map<String, ConfigObject> scriptConfigs = configCache.computeIfAbsent(cfgScript.getClass(), key -> new ConcurrentHashMap<>());
         ConfigObject configForEnvironment = scriptConfigs.computeIfAbsent(environment, key -> {
             ConfigSlurper configSlurper = new ConfigSlurper(key);
             configSlurper.setBinding(bindings);
@@ -271,8 +270,6 @@ public class ScriptContextBuilder {
 
                 if (configEntry == null) {
                     config.put(key, value);
-
-                    continue;
                 } else {
                     if (configEntry instanceof Map && !((Map) configEntry).isEmpty() && value instanceof Map) {
                         doMerge((Map) configEntry, (Map) value);

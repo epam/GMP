@@ -16,6 +16,7 @@
 package com.epam.gmp.service;
 
 import com.epam.gmp.ScriptContext;
+import com.epam.gmp.ScriptExecutionException;
 import com.epam.gmp.ScriptInitializationException;
 import com.epam.gmp.ScriptResult;
 import groovy.lang.Binding;
@@ -27,5 +28,5 @@ public interface IGroovyScriptEngineService {
 
     Script createScript(Resource rootFolder, String scriptName, Binding binding) throws ScriptInitializationException;
 
-    <R> ScriptResult<R> runScript(ScriptContext scriptContext);
+    <R> ScriptResult<R> runScript(ScriptContext scriptContext) throws ScriptExecutionException;
 }

@@ -32,6 +32,8 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -164,7 +166,7 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
     }
 
     @Override
-    public <R> ScriptResult<R> runScript(ScriptContext scriptContext) {
+    public <R> ScriptResult<R> runScript(ScriptContext scriptContext) throws ScriptExecutionException {
         try {
             // fix issue with jackson caching
             JsonMapper.getInstance().cleanCache();
@@ -189,9 +191,13 @@ public class GroovyScriptEngineService implements IGroovyScriptEngineService {
             }
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
-                logger.error("Unable to run: {}  message: {}", scriptContext.getScriptName(), e.getMessage());
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                logger.error("Unable to run: '{}'  message: {}", scriptContext.getScriptName(), sw);
                 putResult(1, scriptContext);
             }
+            throw new ScriptExecutionException(e);
         }
         return null;
     }

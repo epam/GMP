@@ -16,6 +16,7 @@
 package com.epam.gmp.process;
 
 import com.epam.gmp.ScriptContext;
+import com.epam.gmp.ScriptExecutionException;
 import com.epam.gmp.ScriptInitializationException;
 import com.epam.gmp.ScriptResult;
 import com.epam.gmp.service.IGroovyScriptEngineService;
@@ -44,7 +45,7 @@ public class GroovyThread<T> implements IQueuedThread<T> {
     private String resultKey;
 
 
-    private String scriptPath;
+    private final String scriptPath;
     private Map<String, Object> params = new HashMap<>();
 
     public GroovyThread(String scriptPath) {
@@ -67,7 +68,7 @@ public class GroovyThread<T> implements IQueuedThread<T> {
         this.resultKey = scriptContext.getScriptId();
     }
 
-    public ScriptResult<T> call() {
+    public ScriptResult<T> call() throws ScriptExecutionException {
         return groovyScriptEngineService.runScript(scriptContext);
     }
 
